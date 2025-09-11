@@ -1101,3 +1101,5 @@ Ring 1,2-epoxyphenylacetyl-CoA	CC(C)(COP(=O)([O-])OP(=O)([O-])OC[C@H]1O[C@@H](n2
 Trans-Oct-2-enoyl-[acyl-carrier protein]	CCCCCC=CC(=O)SCCNC(=O)CCNC(=O)C(O)C(C)(C)COP(=O)([O-])O[*]
 Tetradecanoate (n-C14:0)	CCCCCCCCCCCCCC(=O)[O-]
 Tetradecenoate (n-C14:1)	CCCC/C=C/CCCCCCCC(=O)O
+Fe(III)hydroxamate	[*]C1NO[Fe]23(ONC([*])=O->2)(ONC([*])=O->3)<-O=1
+Ferroxamine minus Fe(3)	CC(=O)N(O)CCCCCNC(=O)CCC(=O)N(O)CCCCCNC(=O)CCC(=O)N(O)CCCCCN

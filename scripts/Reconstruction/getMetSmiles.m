@@ -26,7 +26,7 @@ function [model, noSMILES] = getMetSmiles(model, parameters)
     dataDir = parameters.dataDir;
     if ~exist(dataDir, 'dir'), mkdir(dataDir); end
     smilesDBfile  = fullfile(dataDir, 'smilesDB.tsv');
-    chemPropPath  = fullfile(findECOMAProot, 'scripts\metanetx\chem_prop.tsv'); % pre-downloaded
+    chemPropPath  = fullfile(findECOMAProot, 'scripts\database\chem_prop.tsv'); % pre-downloaded
 
     % ---- STEP 1: primary by names (PubChem with local cache) ----
     % Clean names: remove 'prot_' prefix only, then trim spaces
