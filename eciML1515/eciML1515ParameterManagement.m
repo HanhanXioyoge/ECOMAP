@@ -37,8 +37,8 @@ function obj = eciML1515ParameterManagement()
     obj.params.taxonomicID         = '83333';                   % Get complex data
 
     % ===== Core reaction IDs =====
-    obj.params.c_source = '';                           % Carbon source exchange reaction
-    obj.params.bioRxn   = '';                           % Biomass reaction ID
+    obj.params.c_source = 'EX_glc_D_e';                           % Carbon source exchange reaction
+    obj.params.bioRxn   = 'BIOMASS';                           % Biomass reaction ID
 
     % ===== Enzyme pseudo-metabolite compartment =====
     obj.params.enzyme_comp = 'cytoplasm';               % e.g., 'cytoplasm', 'periplasm'
