@@ -1,4 +1,4 @@
-function [kcat_list, rmse, r] = runDLKcat(model, fileName, filePath, parameters)
+function [kcat_list, rmse, r] = DLKcat(model, fileName, filePath, parameters)
 %
 % Input:
 %   model - A model structure with fields:

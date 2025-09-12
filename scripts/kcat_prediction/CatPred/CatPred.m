@@ -1,4 +1,4 @@
-function [kcat_list, rmse, r] = runCatPred(model, fileName, filePath, parameters)
+function [kcat_list, rmse, r] = CatPred(model, fileName, filePath, parameters)
 %
 % Input:
 %   model - A model structure with fields:
