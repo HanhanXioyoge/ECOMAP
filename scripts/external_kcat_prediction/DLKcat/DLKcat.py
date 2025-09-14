@@ -2,7 +2,7 @@
 # coding: utf-8
 
 # Author: LE YUAN
-# This script is customized for use with GECKO 3
+# Date: 2020-10-23
 
 import os
 import sys
