@@ -1,0 +1,131 @@
+function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
+%%
+    if nargin < 3 || isempty(parameters)
+        parameters = ParameterManager.getParams();
+        if isempty(parameters)
+            error('ParameterManager is not set.');
+        end
+    end
+    
+    % Set the data storage path
+    dataDir = parameters.dataDir;
+    
+    if nargin < 2 || isempty(DeepLearningModel)
+        error('writeInputFile:MissingDLModelList', ...
+              'DeepLearningModel must be a non-empty list. Allowed: {DLKCAT, UNIKP, CATPRED}.');
+    end
+    
+    if ischar(DeepLearningModel) || isstring(DeepLearningModel)
+        DeepLearningModel = cellstr(DeepLearningModel);
+    elseif ~iscell(DeepLearningModel)
+        error('DeepLearningModel must be char/string/string array/cellstr.');
+    end
+    
+    if ~isfield(model, 'enzymeConstraints') || isempty(model.enzymeConstraints)
+        error('The model does not contain the enzymeConstraints structure.');
+    else
+        % -------- Reaction name normalization --------
+        switch lower(model.enzymeConstraints.ecModeltype)
+            case {'integrated','isozyme'}
+                rxnNames = model.enzymeConstraints.rxns;
+            otherwise
+                rxnNames = extractAfter(model.enzymeConstraints.rxns, 4); % strip 4-char prefix like 'prot'
+        end
+    end
+    
+    ecRxns = true(numel(rxnNames),1);
+    ecRxns = find(ecRxns);
+    rxnNamesToInclude = rxnNames(ecRxns);
+    [sanityCheck, RxnIdxs] = ismember(rxnNamesToInclude, model.rxns);
+    if ~all(sanityCheck)
+        error('Not all reactions in model.enzymeConstraints.rxns are found in model.rxns')
+    end
+
+    metsNoSpecialChars = lower(regexprep(model.metNames,'[^0-9a-zA-Z]+',''));
+    fID = fopen(fullfile(findECOMAProot, 'scripts\database','IgnoreMets.tsv'));
+    fileData   = textscan(fID,'%s %s','delimiter','\t');
+    fclose(fID);
+    [ignoreMets, ignoreSmiles] = deal(fileData{[1,2]});
+    ignoreMets = lower(regexprep(ignoreMets,'[^0-9a-zA-Z]+',''));
+    ignoreSmiles(cellfun(@isempty,ignoreSmiles)) = [];
+
+    ignoreMetsIdx  = logical(ismember(metsNoSpecialChars,ignoreMets));
+    if isfield(model,'metSmiles')
+        ignoreMetsIdx = ignoreMetsIdx | logical(ismember(model.metSmiles,ignoreSmiles));
+    end
+
+    % Also leave out protein-usage pseudometabolites
+    ignoreMetsIdx = ignoreMetsIdx | startsWith(model.mets,'prot_');
+    reducedS = model.S;
+    reducedS(ignoreMetsIdx,:) = 0;
+
+    % Ignore currency metabolites if they occur in pairs. First check by
+    % name (case insensitive, without white spaces and special characters),
+    % then also try to match with metSmiles (if available).
+    fID = fopen(fullfile(findECOMAProot, 'scripts\database','CurrencyMets.tsv'));
+    fileData = textscan(fID,'%s %s','delimiter','\t');
+    fclose(fID);
+    [currencyMets(:,1), currencyMets(:,2)] = deal(fileData{[1,2]});
+    currencyMets = lower(regexprep(currencyMets,'[^0-9a-zA-Z]+',''));
+    
+    for i=1:size(currencyMets,1)
+        subs = strcmp(currencyMets(i,1),metsNoSpecialChars);
+        prod = strcmp(currencyMets(i,2),metsNoSpecialChars);
+        [~,subsRxns]=find(reducedS(subs,:));
+        [~,prodRxns]=find(reducedS(prod,:));
+        pairRxns = intersect(subsRxns,prodRxns);
+        tempRedS=reducedS;
+        tempRedS([find(subs);find(prod)],pairRxns) = 0;
+        % Do not remove currency mets if no substrate remains
+        rxnsWithRemainingSubstrates = any(tempRedS(:,pairRxns) < 0,1);
+        reducedS([find(subs);find(prod)],intersect(pairRxns,pairRxns(rxnsWithRemainingSubstrates))) = 0;
+    end
+    
+    %filter out the reactions we're not interested in
+    clearedRedS = reducedS(:,RxnIdxs);
+    rxnsToClear = true(length(RxnIdxs),1);
+    rxnsToClear(ecRxns) = false;
+    clearedRedS(:,rxnsToClear) = 0;
+    
+    % Enumerate all substrates for each reaction
+    [substrates, reactions] = find(clearedRedS<0); 
+    
+    % Enumerate all proteins for each reaction
+    [proteins, ecRxns] = find(transpose(model.enzymeConstraints.rxnEnzMat(reactions,:)));
+
+    % Prepare output
+    out(1,:) = model.enzymeConstraints.rxns(reactions(ecRxns));
+    out(2,:) = model.enzymeConstraints.genes(proteins);
+    out(3,:) = model.metNames(substrates(ecRxns));
+    if isfield(model,'metSmiles')
+        out(4,:) = model.metSmiles(substrates(ecRxns));
+    else
+        out(4,:) = cell(numel(substrates(ecRxns)),1);
+    end
+    
+    out(5,:) = model.enzymeConstraints.sequence(proteins);
+    if onlyWithSmiles
+        out(:,cellfun(@isempty,out(4,:))) = [];
+    else
+        out(4,cellfun(@isempty,out(4,:))) = {'None'};
+    end
+    out(6,:) = cell(numel(out(1,:)),1);
+    out(6,:) = {'NA'};
+
+    % Write file
+    for i = 1:length(DeepLearningModel)
+        filename = DeepLearningModel{1};
+        fileDir = fullfile(dataDir, filename);
+        fID = fopen(filename,'w');
+        if filename == 'DLKcat'
+            fprintf(fID,'%s\t%s\t%s\t%s\t%s\t%s\n',out{1:6}); 
+        elseif filename == 'UniKP'
+            fprintf(fID,'%s\t%s\t%s\t%s\t%s\t%s\n',out{1:7}); 
+        elseif filename == 'CatPred'
+            fprintf(fID,'%s\t%s\t%s\t%s\t%s\t%s\n',out{:}); 
+        end
+        fclose(fID);
+        fprintf('Model-specific %s input stored at %s\n',filename,fileDir);
+    end
+    writtenTable = out;
+end
