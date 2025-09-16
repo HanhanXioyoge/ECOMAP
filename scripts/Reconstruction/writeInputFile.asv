@@ -49,7 +49,7 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
     dataDir = parameters.dataDir;
 
     if ~isfield(parameters, 'onlyWithSmiles') || isempty(parameters.onlyWithSmiles)
-        parameters.onlyWithSmiles = true;
+        parameters.onlyWithSmiles = false;
     end
 
     if ~isfield(parameters, 'org_name') || isempty(parameters.org_name)
@@ -213,7 +213,7 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
             end
             pdb = sprintf('seq%d.pdb', indx);
             
-            if ~isempty(seq)
+            if ~isempty(seq) || ~isempty(subSmiles)
                 rows_rxn_name{end+1,1}       = safeGetCell(ecz.rxns, rxnE,  'NA');
                 rows_organism{end+1,1}       = parameters.org_name;
                 rows_gene{end+1,1}           = geneID;
@@ -237,7 +237,7 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
 
     % Drop rows without SMILES if requested
     if parameters.onlyWithSmiles
-        keep = ~cellfun(@isempty, T.Substrate_smiles) & ~strcmpi(T.Substrate_smiles, 'NA');
+        keep = ~cellfun(@isempty, T.substrate_smiles) & ~strcmpi(T.substrate_smiles, 'NA');
         T = T(keep, :);
     end
 

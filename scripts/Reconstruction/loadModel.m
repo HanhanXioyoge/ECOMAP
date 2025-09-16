@@ -97,4 +97,5 @@ function model = loadModel(filename, modeltype, modelDir, parameters)
     catch ME
         error('loadModel:StandardizeFailed', 'Failed to standardize model ''%s'': %s', nameNoExt, ME.message);
     end
+    model.metNames = regexprep(model.metNames, '\s+(?:\(?[A-Z][a-z]?\d*\)?){2,}(?:[+-]\d*)?$', '');
 end

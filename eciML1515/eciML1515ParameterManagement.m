@@ -29,7 +29,7 @@ function obj = eciML1515ParameterManagement()
     obj.params.f       = 0.55;  % Enzyme fraction of total protein [g/g protein]
 
     % ===== Organism metadata =====
-    obj.params.org_name        = 'Escherichia coli';
+    obj.params.org_name            = 'Escherichia coli';
     obj.params.uniprot.type        = 'proteome';                % 'taxonomy' or 'proteome'
     obj.params.uniprot.ID          = 'UP000000625';             % Uniprot taxonomy ID
     obj.params.uniprot.geneIDfield = 'gene_oln';                % Gene ID field
