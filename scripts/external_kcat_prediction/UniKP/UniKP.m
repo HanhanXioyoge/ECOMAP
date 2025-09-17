@@ -1,4 +1,4 @@
-function CatPred(dataPath, parameters)
+function UniKP(dataPath, parameters)
 
     if nargin < 2 || isempty(parameters)
         parameters = ParameterManager.getParams();
@@ -8,12 +8,12 @@ function CatPred(dataPath, parameters)
     end
     
     if nargin < 1 || isempty(dataPath)
-        dataPath = fullfile(parameters.dataDir,'CatPred_input.csv');
+        dataPath = fullfile(parameters.dataDir,'UniKP_input.csv');
     elseif strcmp(dataPath(end),{'\','/'})
-        dataPath = fullfile(dataPath,'CatPred_input.csv');
+        dataPath = fullfile(dataPath,'UniKP_input.csv');
     end
 
-    copyfile(dataPath, fullfile(parameters.dataDir,'tempCatPred_input.csv'));
+    copyfile(dataPath, fullfile(parameters.dataDir,'tempUniKP_input.csv'));
         
     %% Check and install requirements
     % On macOS, Docker might not be properly loaded if MATLAB is started via
@@ -29,14 +29,14 @@ function CatPred(dataPath, parameters)
             'If it is, try starting MATLAB from a terminal so the docker command is visible.'])
     end
     
-    disp('Running CatPred prediction, this may take many minutes, especially the first time.')
+    disp('Running UniKP prediction, this may take many minutes, especially the first time.')
     status = system(['docker run --rm -v "' parameters.dataDir '":/data ghcr.io/sysbiochalmers/dlkcat-gecko:0.1 /bin/bash -c "python DLKcat.py /data/tempDLKcat.tsv /data/tempDLKcatOutput.tsv"']);
-    delete(fullfile(parameters.dataDir,'tempCatPred_input.csv'));
+    delete(fullfile(parameters.dataDir,'tempUniKP_input.csv'));
     
-    if status == 0 && exist(fullfile(parameters.dataDir,'tempCatPred_input.csv'))
-        movefile(fullfile(parameters.dataDir,'tempCatPred_input.csv'), dataPath);
-        disp('CatPred prediction completed.');
+    if status == 0 && exist(fullfile(parameters.dataDir,'tempUniKP_input.csv'))
+        movefile(fullfile(parameters.dataDir,'tempUniKP_input.csv'), dataPath);
+        disp('UniKP prediction completed.');
     else    
-        error('CatPred encountered an error or it did not create any output file.')
+        error('UniKP encountered an error or it did not create any output file.')
     end
 end

@@ -281,7 +281,6 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
     writtenTable = T;
 end
 
-
 % ------------------------------ Helpers ----------------------------------
 function val = safeGetCell(cellarr, idx, defaultVal)
 % SAFEGETCELL  Return cell array element if exists and non-empty; else default.

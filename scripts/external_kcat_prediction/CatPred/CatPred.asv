@@ -30,7 +30,7 @@ function CatPred(dataPath, parameters)
     end
     
     disp('Running CatPred prediction, this may take many minutes, especially the first time.')
-    status = system(['docker run --rm -v "' parameters.dataDir '":/data ghcr.io/sysbiochalmers/dlkcat-gecko:0.1 /bin/bash -c "python DLKcat.py /data/tempDLKcat.tsv /data/tempDLKcatOutput.tsv"']);
+    status = system(['docker run --rm -v "' parameters.dataDir '":/data ghcr.io/sysbiochalmers/dlkcat-gecko:0.1 /bin/bash -c "python DLKcat.py /data/tempDLKcat.tsv /data/tempCatPred_input.csv"']);
     delete(fullfile(parameters.dataDir,'tempCatPred_input.csv'));
     
     if status == 0 && exist(fullfile(parameters.dataDir,'tempCatPred_input.csv'))
