@@ -59,5 +59,6 @@ function model = initializeModelStruct()
                                      'enzymes', [], ...         % Enzyme uniprot id
                                      'mw', [], ...              % Enzyme relative molecular weight
                                      'sequence', [], ...        % Enzyme sequences
+                                     'PDB', [], ...             % Enzyme structure
                                      'rxnEnzMat', []);          
 end

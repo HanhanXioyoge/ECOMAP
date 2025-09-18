@@ -150,11 +150,13 @@ function ecModel = convertecModel(model, ecModeltype, parameters)
     end
     dbStruct = ParseUniProtData(uniprot_Path);
 
-    Numl = numel(model.genes);
-    Lia = false(Numl,1);
-    Loc = zeros(Numl,1);
+    Numl    = numel(model.genes);
+    Lia     = false(Numl,1);
+    Loc     = zeros(Numl,1);
+    PDB     = {};
 
     for i = 1:Numl
+        PDB{end+1,1}  = sprintf('seq%d.pdb', i);
         matches = cellfun(@(x) contains(x, model.genes{i}), dbStruct.genes);
         if any(matches)
             Lia(i) = true;
@@ -163,11 +165,12 @@ function ecModel = convertecModel(model, ecModeltype, parameters)
     end
     
     % Build matched enzymeConstraints (only indices where Lia is true)
-    matchedIdx = find(Lia);
-    enzymeConstraints.genes = model.genes(matchedIdx);    
-    enzymeConstraints.enzymes = dbStruct.ID(Loc(matchedIdx));
-    enzymeConstraints.mw = dbStruct.MW(Loc(matchedIdx));
-    enzymeConstraints.sequence = dbStruct.seq(Loc(matchedIdx)); 
+    matchedIdx                      = find(Lia);
+    enzymeConstraints.genes         = model.genes(matchedIdx);    
+    enzymeConstraints.enzymes       = dbStruct.ID(Loc(matchedIdx));
+    enzymeConstraints.mw            = dbStruct.MW(Loc(matchedIdx));
+    enzymeConstraints.sequence      = dbStruct.seq(Loc(matchedIdx)); 
+    enzymeConstraints.PDB           = PDB;
 
     % Build Nomatch structure and try to extract UniProt IDs from model.geneMiriams
     NoMatchGenes = ~Lia;
