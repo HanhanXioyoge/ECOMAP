@@ -1,5 +1,27 @@
 function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
-
+% WRITEINPUTFILE
+% Build input CSV files for selected deep-learning kcat models (DLKcat, UniKP, CatPred)
+% from an enzyme-constrained model (ecModel).
+%
+% The function enumerates (substrate, reaction, protein) tuples from the
+% enzymeConstraints mapping, filters out ignored/currency metabolites, and writes
+% per-model CSVs with the columns each predictor typically expects.
+%
+% Inputs
+%   model              : COBRA/GECKO-like model with model.enzymeConstraints.* fields
+%   DeepLearningModel  : char/string/array/cellstr, subset of {'DLKcat','UniKP','CatPred'}
+%   parameters         : struct with fields
+%       - dataDir          : output folder for CSVs (required)
+%       - onlyWithSmiles   : logical (default true) keep only rows with SMILES
+%       - org_name         : organism name to stamp in the table (default 'NA')
+%
+% Output
+%   writtenTable       : the master table prior to per-model column selection
+%
+% Notes
+%   - If model.metSmiles/metInChIKey/metMetaNetXID are missing, the function
+%     degrades gracefully and fills 'NA' while warning.
+%   - enzymeConstraints.PDB is optional; if absent, CatPred's pdbpath column is empty.
 
     % ------------------------- Parameter defaults -------------------------
     if nargin < 3 || isempty(parameters)
@@ -48,14 +70,21 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
     end
     ecz = model.enzymeConstraints;
     reqFields = {'ecModeltype','rxns','genes','eccodes','sequence','rxnEnzMat'};
-    for f = reqFields
-        if ~isfield(ecz, f{1})
-            error('Missing model.enzymeConstraints.%s.', f{1});
-        end
+    tf = isfield(ecz, reqFields); 
+    if ~all(tf)
+        missing = reqFields(~tf);
+        error('Missing model.enzymeConstraints field(s): %s.', strjoin(missing, ', '));
     end
 
     % Optional commonly used fields
     hasSmiles= isfield(model, 'metSmiles');
+    commonly_fields = {'metSmiles', 'metInChIKey', 'metMetaNetXID'};
+    tf = isfield(model, commonly_fields); 
+    if ~all(tf)
+        missing = commonly_fields(~tf);
+        error('Missing model field(s): %s. Check if the functions addMetMetaNetXID and getMetinfo are executed', strjoin(missing, ', '));
+    end
+    model.metSmiles = string(model.metSmiles(:));
 
     % --------------------- Normalize reaction name set --------------------
     % Some ecModel variants store ec rxn IDs with a prefix (e.g. 'prot_');
@@ -140,8 +169,10 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
     rows_gene           = {};
     rows_protein        = {};
     rows_ecnum          = {};
+    rows_metanetxid     = {};
     rows_sub_name       = {};
     rows_sub_smiles     = {};
+    rows_inchi_key      = {};
     rows_seq            = {};
     rows_struct_id      = {};
 
@@ -152,8 +183,10 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
             continue; % no enzymes assigned -> skip
         end
 
-        subName  = safeGetCell(model.metNames, metIdx(k), 'NA');
-        subSmiles= 'NA';
+        subName     = safeGetCell(model.metNames, metIdx(k), '');
+        metanetxid  = safeGetCell(model.metMetaNetXID, metIdx(k), '');
+        inchi_key   = safeGetCell(model.metInChIKey, metIdx(k), '');
+        subSmiles   = 'NA';
         if hasSmiles
             val = safeGetCell(model.metSmiles, metIdx(k), '');
             if ~isempty(val), subSmiles = val; end
@@ -165,7 +198,7 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
             geneID    = safeGetCell(ecz.genes, p, 'NA');
             proteinID = safeGetCell(ecz.enzymes, p, 'NA');
             seq       = safeGetCell(ecz.sequence, p, '');
-            ecnum     = safeGetCell(ecz.eccodes, p, '');
+            ecnum     = safeGetCell(ecz.eccodes, rxnE, '');
             pdb       = safeGetCell(ecz.PDB, p, '');
             
             if ~isempty(seq) || ~strcmpi(subSmiles, 'NA')
@@ -174,8 +207,10 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
                 rows_gene{end+1,1}           = geneID;
                 rows_protein{end+1,1}        = proteinID;
                 rows_ecnum{end+1,1}          = ecnum;
+                rows_metanetxid{end+1,1}     = metanetxid;
                 rows_sub_name{end+1,1}       = subName;
                 rows_sub_smiles{end+1,1}     = subSmiles;
+                rows_inchi_key{end+1,1}      = inchi_key;
                 rows_seq{end+1,1}            = seq;
                 rows_struct_id{end+1,1}      = pdb;
             end
@@ -184,15 +219,14 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
 
     % ------------------------- Build master table -------------------------
     T = table( ...
-        rows_rxn_name, rows_organism, rows_gene,rows_protein,rows_ecnum, ...
-        rows_sub_name,rows_sub_smiles,rows_seq,rows_struct_id, ...
+        rows_rxn_name, rows_organism, rows_gene,rows_protein,rows_ecnum, rows_metanetxid,...
+        rows_sub_name,rows_sub_smiles, rows_inchi_key, rows_seq,rows_struct_id, ...
         'VariableNames', {'ReactionName', 'Organism', 'GeneID', 'ProteinID', ...
-        'EC Number','Substrate_name', 'Substrate_smiles', 'Protein_sequence', ...
-        'Pdb'} );
+        'EC Number', 'MetaNetXID', 'Substrate', 'SMILES', 'InChIKey', 'sequence', 'pdbpath'} );
 
     % Drop rows without SMILES if requested
     if parameters.onlyWithSmiles
-        keep = ~cellfun(@isempty, T.Substrate_smiles) & ~strcmpi(T.Substrate_smiles, 'NA');
+        keep = ~cellfun(@isempty, T.SMILES) & ~strcmpi(T.SMILES, 'NA');
         T = T(keep, :);
     end
 
@@ -207,27 +241,24 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
         switch tag
             case 'DLKCAT'
                 TL = T(:, {'ReactionName', 'Organism', 'GeneID', 'ProteinID', ...
-                    'EC Number','Substrate_name', 'Substrate_smiles', ...
-                    'Protein_sequence'});
-                outFile = fullfile(dataDir, 'DLKcat_input.csv');
+                    'EC Number', 'MetaNetXID', 'Substrate', 'SMILES', 'InChIKey', 'sequence'});
+                outFile = fullfile(dataDir, 'kcatData', 'DLKcat_input.csv');
                 writetable(TL, outFile);
                 fprintf('DLKcat input written to: %s\n', outFile);
 
             case 'UNIKP'
                 % If UniKP does not need organism, drop it; keep EC if available
                 TU = T(:, {'ReactionName', 'Organism', 'GeneID', 'ProteinID', ...
-                    'EC Number','Substrate_name', 'Substrate_smiles', ...
-                    'Protein_sequence'});
-                outFile = fullfile(dataDir, 'UniKP_input.csv');
+                    'EC Number', 'MetaNetXID','Substrate', 'SMILES', 'InChIKey', 'sequence'});
+                outFile = fullfile(dataDir, 'kcatData', 'UniKP_input.csv');
                 writetable(TU, outFile);
                 fprintf('UniKP input written to: %s\n', outFile);
 
             case 'CATPRED'
                 % CatPred requires protein structure info
                 TC = T(:, {'ReactionName', 'Organism', 'GeneID', 'ProteinID', ...
-                    'EC Number','Substrate_name', 'Substrate_smiles', ...
-                    'Protein_sequence', 'Pdb'});
-                outFile = fullfile(dataDir, 'CatPred_input.csv');
+                    'EC Number', 'MetaNetXID','Substrate', 'SMILES', 'InChIKey', 'sequence', 'pdbpath'});
+                outFile = fullfile(dataDir, 'kcatData', 'CatPred_input.csv');
                 writetable(TC, outFile);
                 fprintf('CatPred input written to: %s\n', outFile);
         end

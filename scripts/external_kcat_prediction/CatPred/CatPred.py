@@ -12,7 +12,7 @@ Dependencies:
 """
 
 import time
-import os
+import os, stat
 import pandas as pd
 import numpy as np
 from IPython.display import Image, display
@@ -20,34 +20,52 @@ from rdkit import Chem
 from IPython.display import display, Latex, Math
 import argparse
 
+ESM_MAX_LEN = 1022
+VALID_AAS = set('ACDEFGHIKLMNPQRSTVWY')
+
 def create_csv_sh(parameter, input_file_path, checkpoint_dir):
     df = pd.read_csv(input_file_path)
-    smiles_list = df.SMILES
-    seq_list = df.sequence
-    smiles_list_new = []
 
-    for i, smi in enumerate(smiles_list):
-        try:
-            mol = Chem.MolFromSmiles(smi)
-            smi = Chem.MolToSmiles(mol)
-            if parameter == 'kcat' and '.' in smi:
-                smi = '.'.join(sorted(smi.split('.')))
-            smiles_list_new.append(smi)
-        except:
-            print(f'Invalid SMILES input in input row {i}')
-            print('Correct your input! Exiting..')
-            return None
+    df.columns = [c.strip() for c in df.columns]
+    if not {'SMILES', 'sequence'}.issubset(df.columns):
+        raise ValueError(f"Required columns are missing: { {'SMILES','sequence'} - set(df.columns) }")
 
-    valid_aas = set('ACDEFGHIKLMNPQRSTVWY')
-    for i, seq in enumerate(seq_list):
-        if not set(seq).issubset(valid_aas):
-            print(f'Invalid Enzyme sequence input in row {i}!')
-            print('Correct your input! Exiting..')
-            return None
+    df['SMILES'] = df['SMILES'].astype(str).str.strip()
+    df['sequence'] = df['sequence'].astype(str).str.strip().str.upper()
 
-    input_file_new_path = f'{input_file_path[:-4]}_input.csv'
-    df['SMILES'] = smiles_list_new
-    df.to_csv(input_file_new_path)
+    keep_idx = []
+    cleaned_smiles = {}
+
+    for idx, row in df.iterrows():
+        smi = row['SMILES']
+        seq = row['sequence']
+
+        # Sequence verification
+        if not set(seq).issubset(VALID_AAS):
+            continue
+        if len(seq) == 0 or len(seq) > ESM_MAX_LEN:
+            continue
+
+        # SMILES parsing & normalizing
+        mol = Chem.MolFromSmiles(smi) if smi else None
+        if mol is None:
+            continue
+
+        smi_can = Chem.MolToSmiles(mol)
+        if parameter == 'kcat' and '.' in smi_can:
+            smi_can = '.'.join(sorted(smi_can.split('.')))  # Fragment sorting to ensure certainty
+
+        keep_idx.append(idx)
+        cleaned_smiles[idx] = smi_can
+
+    # Only legitimate lines are kept and normalized SMILES are written
+    df_valid = df.loc[keep_idx].copy()
+    df_valid['SMILES'] = [cleaned_smiles[i] for i in keep_idx]
+
+    # Write cleaned input file (no index)
+    base, _ = os.path.splitext(input_file_path)
+    input_file_new_path = f"{base}_input.csv"
+    df_valid.to_csv(input_file_new_path, index=False)
 
     with open('predict.sh', 'w') as f:
         f.write(f'''
@@ -59,6 +77,14 @@ def create_csv_sh(parameter, input_file_path, checkpoint_dir):
         python predict.py --test_path ${{TEST_FILE_PREFIX}}.csv --preds_path ${{TEST_FILE_PREFIX}}_output.csv --checkpoint_dir $CHECKPOINT_DIR --uncertainty_method mve --smiles_column SMILES --individual_ensemble_predictions --protein_records_path $RECORDS_FILE
         ''')
 
+    with open('predict.sh', 'rb') as _f:
+        _data = _f.read().replace(b'\r\n', b'\n')
+    with open('predict.sh', 'wb') as _f:
+        _f.write(_data)
+
+    st = os.stat('predict.sh')
+    os.chmod('predict.sh', st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    
     return input_file_new_path[:-4]+'_output.csv'
 
 def get_predictions(parameter, outfile):
@@ -124,14 +150,14 @@ def main(args):
     print('Predicting.. This will take a while..')
 
     if args.use_gpu:
+        print(args.use_gpu)
         os.system("export PROTEIN_EMBED_USE_CPU=0;./predict.sh")
     else:
         os.system("export PROTEIN_EMBED_USE_CPU=1;./predict.sh")
 
     output_final = get_predictions(args.parameter, outfile)
-    filename = outfile.split('/')[-1]
-    output_final.to_csv(f'../results/{filename}')
-    print('Output saved to results/', filename)
+    output_final.to_csv(outfile, index=False)  # 直接写回原路径
+    print('Output saved to', outfile)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predict enzyme kinetics parameters.")

@@ -1,0 +1,8 @@
+{
+  "input_csv": "D:\\project\\ECOMAP\\ECOMAP\\scripts\\database\\brenda_substrate_test.csv",
+  "snapshot_sha256": "81e93a2e731edafef9dd89db055236550e13e484f28ef3afaa0ad1b15b68d92a",
+  "batch_size": 5,
+  "total_rows": 14,
+  "total_batches": 3,
+  "created_at": "2025-10-23 09:29:04"
+}

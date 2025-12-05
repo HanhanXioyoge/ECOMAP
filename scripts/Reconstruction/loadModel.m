@@ -93,9 +93,58 @@ function model = loadModel(filename, modeltype, modelDir, parameters)
 
     % 9) Standardize model structure (wrap errors)
     try
-        model = standardizeModel(model, nameNoExt, char(modeltype));
+        model.id = nameNoExt;
+        model.type = char(modeltype);
     catch ME
         error('loadModel:StandardizeFailed', 'Failed to standardize model ''%s'': %s', nameNoExt, ME.message);
     end
+    
+    % ---- Ensure Miriam cross-reference containers exist and match lengths ----
+    model.metMiriams  = ensureMiriamCell(model, 'metMiriams',  numel(model.mets));
+    model.rxnMiriams  = ensureMiriamCell(model, 'rxnMiriams',  numel(model.rxns));
+    model.geneMiriams = ensureMiriamCell(model, 'geneMiriams', numel(model.genes));
+
     model.metNames = regexprep(model.metNames, '\s+(?:\(?[A-Z][a-z]?\d*\)?){2,}(?:[+-]\d*)?$', '');
+end
+
+function C = ensureMiriamCell(model, fieldName, N)
+% ensureMiriamCell
+%   Guarantees model.(fieldName) is an N×1 cell array.
+%   Each cell holds a struct array with fields .name / .value (or empty).
+%
+% Behavior:
+%   - If the field is missing or empty -> initialize to N×1 with empty structs.
+%   - If present, must be a cell array with exactly N elements (column-shaped).
+%   - Normalizes empties to an empty struct array (struct('name',{},'value',{})).
+
+    emptyEntry = struct('name',{},'value',{});
+
+    if N == 0
+        % No items to host; return empty cell to avoid length mismatch errors.
+        C = cell(0,1);
+        return;
+    end
+
+    if ~isfield(model, fieldName) || isempty(model.(fieldName))
+        C = repmat({emptyEntry}, N, 1);
+        return;
+    end
+
+    C = model.(fieldName);
+    if ~iscell(C)
+        error('%s must be a cell array (got %s).', fieldName, class(C));
+    end
+    if numel(C) ~= N
+        error('%s length (%d) must match target length (%d).', fieldName, numel(C), N);
+    end
+    C = C(:); % force column
+
+    % Normalize element types: allow empty or struct; coerce empty to emptyEntry
+    for i = 1:N
+        if isempty(C{i})
+            C{i} = emptyEntry;
+        elseif ~isstruct(C{i})
+            error('%s{%d} must be a struct (or empty).', fieldName, i);
+        end
+    end
 end

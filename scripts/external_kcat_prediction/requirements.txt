@@ -1,0 +1,9 @@
+scikit-learn==0.24.2
+Biopython==1.78
+rdkit-pypi
+pandas
+SciPy
+NumPy<2
+transformers
+SentencePiece
+tqdm

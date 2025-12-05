@@ -2,13 +2,15 @@ function model = initializeModelStruct()
 % Initialize model structure with annotated fields
     model = [];
     model.id = [];
-    model.name = [];
+    model.type = [];
     
     % Biological context information
     model.information = struct('organism', [], ...          % Source organism name (string)
                                'taxonomicID', [], ...       % NCBI taxonomic identifier (string)
-                               'uniprot_type', [], ...      % UniProt identifier system used (string)
-                               'uniprot_id', []);            % UniProt protein accessions (cell array)
+                               'uniprot', struct('ID', [], ... 
+                                                 'type', [], ... 
+                                                 'geneIDfield', [], ... 
+                                                 'reviewed', [])); 
 
     % Metabolic network components
     model.rxns = {};       % Reaction IDs (cell array)

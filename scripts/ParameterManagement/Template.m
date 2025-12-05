@@ -40,6 +40,13 @@ function obj = KEY_Template()
     obj.params.c_source = '';                           % Carbon source exchange reaction
     obj.params.bioRxn   = '';                           % Biomass reaction ID
 
-    % ===== Enzyme pseudo-metabolite compartment =====
-    obj.params.enzyme_comp = 'cytoplasm';               % e.g., 'cytoplasm', 'periplasm'
+    % ===== PRESTO OPTION  =====
+    % Specify whether the approach should be run parallelized
+    obj.params.PRESTO.runParallel = ;                   % true/false
+    obj.params.PRESTO.ncpu = ;
+    obj.params.PRESTO.nIter = ;                                      % set the number of iterations of k-fold cross-validation
+    % correction parameters
+    obj.params.PRESTO.epsilon = ;
+    obj.params.PRESTO.lambda = ;
+    obj.params.PRESTO.theta = ;
 end

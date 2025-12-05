@@ -4,9 +4,7 @@
 # Author: LE YUAN
 # Date: 2020-10-23
 
-import os
-import sys
-import math
+import os, sys, math, csv
 import pickle
 import numpy as np
 from rdkit import Chem
@@ -242,92 +240,125 @@ class KcatPrediction(nn.Module):
             # predicted_scores = list(map(lambda x: x[1], ys))
             return correct_values, predicted_values
 
+def _get_first(row, *keys):
+    for k in keys:
+        if k in row and row[k] is not None:
+            v = str(row[k]).strip()
+            if v != '':
+                return v
+    return ''
+
 def main() :
+    if len(sys.argv) < 3:
+        print("Usage: python Dlkcat.py <input.csv> <output.csv>")
+        sys.exit(1)
+
     inputfile = sys.argv[1:][0]
     outputfile = sys.argv[1:][1]
     #print(inputfile)
 
-    if os.access(inputfile, os.R_OK):
-        with open(inputfile, 'r') as infile :
-            lines = infile.readlines()
-
-        fingerprint_dict = load_pickle('input/fingerprint_dict.pickle')
-        atom_dict = load_pickle('input/atom_dict.pickle')
-        bond_dict = load_pickle('input/bond_dict.pickle')
-        word_dict = load_pickle('input/sequence_dict.pickle')
-        n_fingerprint = len(fingerprint_dict)
-        n_word = len(word_dict)
-
-        radius=2
-        ngram=3
-
-        dim=10
-        layer_gnn=3
-        side=5
-        window=11
-        layer_cnn=3
-        layer_output=3
-        lr=1e-3
-        lr_decay=0.5
-        decay_interval=10
-        weight_decay=1e-6
-        iteration=100
-
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-        else:
-            device = torch.device('cpu')
-
-        # torch.manual_seed(1234)
-        Kcat_model = KcatPrediction(device, n_fingerprint, n_word, 2*dim, layer_gnn, window, layer_cnn, layer_output).to(device)
-        Kcat_model.load_state_dict(torch.load('input/all--radius2--ngram3--dim20--layer_gnn3--window11--layer_cnn3--layer_output3--lr1e-3--lr_decay0.5--decay_interval10--weight_decay1e-6--iteration50', map_location=device))
-        # print(state_dict.keys())
-        # model.eval()
-        predictor = Predictor(Kcat_model)
-
-        with open(outputfile, 'w') as outfile :
-
-            for line in lines[1:] :
-                line_item = list()
-                data = line.strip().split('\t')
-                rxn,gene,sub,smiles,sequence,Kcat_value = data
-
-                try :
-                    if smiles != None and "." not in smiles and len(smiles) !=0 :
-
-                        mol = Chem.AddHs(Chem.MolFromSmiles(smiles))
-                        atoms = create_atoms(mol)
-                        i_jbond_dict = create_ijbonddict(mol)
-
-                        fingerprints = extract_fingerprints(atoms, i_jbond_dict, radius)
-
-                        adjacency = create_adjacency(mol)
-
-                        words = split_sequence(sequence,ngram)
-
-                        fingerprints = torch.LongTensor(fingerprints).to(device)
-                        adjacency = torch.FloatTensor(adjacency).to(device)
-                        words = torch.LongTensor(words).to(device)
-
-                        inputs = [fingerprints, adjacency, words]
-
-                        prediction = predictor.predict(inputs)
-                        Kcat_log_value = prediction.item()
-                        Kcat_value = '%.4f' %math.pow(2,Kcat_log_value)
-                        line_item = [rxn,gene,sub,smiles,sequence,Kcat_value]
-
-                        outfile.write('\t'.join(line_item)+'\n')
-                    else :
-                        Kcat_value = 'None'
-                        line_item = [rxn,gene,sub,smiles,sequence,Kcat_value]
-                        outfile.write('\t'.join(line_item)+'\n')
-
-                except :
-                    Kcat_value = 'None'
-                    line_item = [rxn,gene,sub,smiles,sequence,Kcat_value]
-                    outfile.write('\t'.join(line_item)+'\n')
-    else:
+    if not os.access(inputfile, os.R_OK):
         print('DLKcat cannot find the input file ' + inputfile)
+        sys.exit(1)
+
+    fingerprint_dict = load_pickle('input/fingerprint_dict.pickle')
+    atom_dict = load_pickle('input/atom_dict.pickle')
+    bond_dict = load_pickle('input/bond_dict.pickle')
+    word_dict = load_pickle('input/sequence_dict.pickle')
+    n_fingerprint = len(fingerprint_dict)
+    n_word = len(word_dict)
+
+    radius=2
+    ngram=3
+
+    dim=10
+    layer_gnn=3
+    side=5
+    window=11
+    layer_cnn=3
+    layer_output=3
+    lr=1e-3
+    lr_decay=0.5
+    decay_interval=10
+    weight_decay=1e-6
+    iteration=100
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    # torch.manual_seed(1234)
+    Kcat_model = KcatPrediction(device, n_fingerprint, n_word, 2*dim, layer_gnn, window, layer_cnn, layer_output).to(device)
+    Kcat_model.load_state_dict(torch.load('input/all--radius2--ngram3--dim20--layer_gnn3--window11--layer_cnn3--layer_output3--lr1e-3--lr_decay0.5--decay_interval10--weight_decay1e-6--iteration50', map_location=device))
+    # print(state_dict.keys())
+    # model.eval()
+    predictor = Predictor(Kcat_model)
+
+    out_header = [
+        'ReactionName', 'Organism', 'GeneID', 'ProteinID', 'EC Number', 'MetaNetXID',
+        'Substrate_name', 'Substrate_smiles', 'InChIKey','Protein_sequence',
+        'predicted_kcat'
+    ]
+    
+    with open(inputfile, 'r', encoding='utf-8-sig', newline='') as infh, \
+        open(outputfile, 'w', encoding='utf-8', newline='') as outfh:
+
+        sample = infh.read(4096); infh.seek(0)
+
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=',\t;')
+        except csv.Error:
+            dialect = csv.excel
+
+        reader = csv.DictReader(infh, dialect=dialect)
+        writer = csv.DictWriter(outfh, fieldnames=out_header)
+        writer.writeheader()    
+
+        for row in reader:
+            rxn      = _get_first(row, 'ReactionName', 'Reaction', 'rxn', 'reaction_name')
+            org      = _get_first(row, 'Organism', 'organism')
+            gene     = _get_first(row, 'GeneID', 'Gene', 'gene_id', 'gene')
+            protein  = _get_first(row, 'ProteinID', 'protein_id', 'Protein', 'protein')
+            ecnum    = _get_first(row, 'EC Number', 'EC_Number', 'ECNumber', 'EC', 'ec_number')
+            eataid   = _get_first(row, 'MetaNetXID')
+            sub_name = _get_first(row, 'Substrate_name', 'Substrate', 'substrate_name', 'substrate')
+            smiles   = _get_first(row, 'Substrate_smiles', 'SMILES', 'smiles')
+            inchi_key= _get_first(row, 'InChIKey', 'InChI_Key')
+            seq      = _get_first(row, 'Protein_sequence', 'Sequence', 'protein_sequence', 'sequence')
+
+            pred_kcat = 'None'
+            try:
+                if smiles and "." not in smiles:
+                    mol = Chem.AddHs(Chem.MolFromSmiles(smiles))
+                    if mol is not None:
+                        atoms      = create_atoms(mol)
+                        ijbond     = create_ijbonddict(mol)
+                        fps        = extract_fingerprints(atoms, ijbond, radius)
+                        adj        = create_adjacency(mol)
+                        words      = split_sequence(seq, ngram)
+
+                        fps_t  = torch.LongTensor(fps).to(device)
+                        adj_t  = torch.FloatTensor(adj).to(device)
+                        words_t= torch.LongTensor(words).to(device)
+
+                        inputs  = [fps_t, adj_t, words_t]
+                        pred    = predictor.predict(inputs)
+                        log2val = pred.item()
+                        pred_kcat = f"{math.pow(2, log2val):.4f}"
+            except Exception:
+                pred_kcat = 'None'
+
+            writer.writerow({
+                'ReactionName'     : rxn,
+                'Organism'         : org,
+                'GeneID'           : gene,
+                'ProteinID'        : protein,
+                'EC Number'        : ecnum,
+                'MetaNetXID'       : eataid,
+                'Substrate_name'   : sub_name,
+                'Substrate_smiles' : smiles,
+                'InChIKey'         : inchi_key,
+                'Protein_sequence' : seq,
+                'predicted_kcat'   : pred_kcat
+            })
 
 if __name__ == '__main__' :
     main()

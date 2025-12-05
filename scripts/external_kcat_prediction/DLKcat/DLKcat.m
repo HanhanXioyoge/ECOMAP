@@ -1,42 +1,71 @@
-function DLKcat(dataPath, parameters)
+function DLKcat(fileDir, parameters)
+% DLKcat
+% Run kcat prediction inside local Docker image `hanhanxioyoge:kcat_prediction`.
+% Input file   : DLKcat_input.csv  (in the mounted data folder)
+% Output file  : DLKcat.csv (written back to the same folder)
+%
 
-    if nargin < 2 || isempty(parameters)
+    % -------------------- Resolve parameters --------------------
+    if ~isempty(fileDir)
+        dataDir = fileDir;
+    elseif nargin < 2 || isempty(parameters)
         parameters = ParameterManager.getParams();
+        if ~isfield(parameters,'dataDir') || isempty(parameters.dataDir)
+            error('parameters.dataDir is required.');
+        else
+            dataDir = parameters.dataDir;
+            dataDir = fullfile(dataDir, 'kcatData');
+        end
         if isempty(parameters)
-            error('ParameterManager is not set.')
+            error('ParameterManager is not set.');
         end
     end
-    
-    if nargin < 1 || isempty(dataPath)
-        dataPath = fullfile(parameters.dataDir,'DLKcat_input.csv');
-    elseif strcmp(dataPath(end),{'\','/'})
-        dataPath = fullfile(dataPath,'DLKcat_input.csv');
+
+    dataPath = dataDir;
+    outputHost = fullfile(dataPath, 'DLKcat.csv');
+
+    % -------------------- macOS PATH fix (optional) -------------
+    if ismac
+        % include both Intel & Apple Silicon common paths
+        setenv('PATH', ['/usr/local/bin' pathsep '/opt/homebrew/bin' pathsep getenv('PATH')]);
     end
 
-    copyfile(dataPath, fullfile(parameters.dataDir,'tempDLKcat_input.csv'));
-        
-    %% Check and install requirements
-    % On macOS, Docker might not be properly loaded if MATLAB is started via
-    % launcher and not terminal.
-    if ismac
-        setenv('PATH', strcat('/usr/local/bin', ':', getenv("PATH")));
+    % -------------------- Check Docker availability -------------
+    [stDocker, ~] = system('docker --version');
+    if stDocker ~= 0
+        error(['Docker not found. Please ensure Docker Desktop is installed and running. ', ...
+               'On macOS, try launching MATLAB from a terminal so PATH is inherited.']);
+    end
+
+    % -------------------- Build and run docker command ----------
+    image = 'hanhanxioyoge/kcat_prediction_dlkcat_unikp:v1.0';
+
+    % Container-side fixed POSIX paths
+    inputCont  = '/data/DLKcat_input.csv';
+    outputCont = '/data/DLKcat.csv';
+
+    % Compose command: mount host data dir to /data, then call python DLKcat.py
+    [st,out] = system('nvidia-smi -L');
+    gpuOpt = '';
+    if st==0 && contains(out,'GPU')
+        gpuOpt = '--gpus all ';
     end
     
-    % Check if Docker is installed
-    [checks.docker.status, checks.docker.out] = system('docker --version');
-    if checks.docker.status ~= 0
-        error(['Docker not found. Please confirm it is installed and running. ' ...
-            'If it is, try starting MATLAB from a terminal so the docker command is visible.'])
+    cmd = sprintf(['docker run --rm %s -v "%s":/data -w /app/DLKcat %s ', ...
+                   'python /app/DLKcat/DLKcat.py %s %s'], ...
+                   gpuOpt, dataPath, image, inputCont, outputCont);
+
+    fprintf('Running DLKcat in Docker...\n image: %s\n', image);
+    [status, cmdout] = system(cmd);
+
+    % -------------------- Check result --------------------------
+    if status ~= 0
+        error('DLKcat failed (exit code %d).\nCommand:\n%s\n\nOutput:\n%s', status, cmd, cmdout);
     end
-    
-    disp('Running DLKcat prediction, this may take many minutes, especially the first time.')
-    status = system(['docker run --rm -v "' parameters.dataDir '":/data ghcr.io/sysbiochalmers/dlkcat-gecko:0.1 /bin/bash -c "python DLKcat.py /data/tempDLKcat.tsv /data/tempDLKcatOutput.tsv"']);
-    delete(fullfile(parameters.dataDir,'tempDLKcat_input.csv'));
-    
-    if status == 0 && exist(fullfile(parameters.dataDir,'tempDLKcat_input.csv'))
-        movefile(fullfile(parameters.dataDir,'tempDLKcat_input.csv'), dataPath);
-        disp('DLKcat prediction completed.');
-    else    
-        error('DLKcat encountered an error or it did not create any output file.')
+
+    if exist(outputHost, 'file') ~= 2
+        error('DLKcat did not produce output file: %s', outputHost);
     end
+
+    disp('DLKcat prediction completed. Output written to DLKcat.csv');
 end

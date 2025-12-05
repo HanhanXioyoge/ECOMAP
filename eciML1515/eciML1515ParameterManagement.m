@@ -37,9 +37,18 @@ function obj = eciML1515ParameterManagement()
     obj.params.taxonomicID         = '83333';                   % Get complex data
 
     % ===== Core reaction IDs =====
-    obj.params.c_source = 'EX_glc_D_e';                           % Carbon source exchange reaction
-    obj.params.bioRxn   = 'BIOMASS';                           % Biomass reaction ID
+    obj.params.c_source = 'EX_glc__D_e';                         % Carbon source exchange reaction
+    obj.params.bioRxn   = 'BIOMASS_Ec_iML1515_core_75p37M';     % Biomass reaction ID
 
-    % ===== Enzyme pseudo-metabolite compartment =====
-    obj.params.enzyme_comp = 'cytoplasm';               % e.g., 'cytoplasm', 'periplasm'
-end
+    % ===== PRESTO OPTION  =====
+    % Specify whether the approach should be run parallelized
+
+    obj.params.PRESTO.runParallel = true;
+    obj.params.PRESTO.ncpu = 8;
+    obj.params.PRESTO.nIter = 50;                               % set the number of iterations of k-fold cross-validation
+    % correction parameters
+    obj.params.PRESTO.epsilon = 1e5;
+    obj.params.PRESTO.lambda = 1e-5;
+    obj.params.PRESTO.theta = 0.6;
+
+end  
