@@ -113,10 +113,10 @@ function ecModel = convertecModel(model, ecModeltype, parameters)
     if strcmp(ecModeltype,'integrated') || strcmp(ecModeltype,'isozyme')
         % Define once and reuse (strict transport filters incl. proton-coupled & stoich-identical)
         opts = struct();
-        opts.useNameHeuristic         = true;
-        opts.nameHeuristicRequireNoEC = true;
-        opts.useProtonCoupling        = true;
-        opts.useStoichFallback        = true;
+        opts.useNameHeuristic         = false;
+        opts.nameHeuristicRequireNoEC = false;
+        opts.useProtonCoupling        = false;
+        opts.useStoichFallback        = false;
         opts.keywords = { ...
             'transport','transporter','translocase','symport','antiport', ...
             'channel','permease','pump','carrier','porin','shuttle', ...
@@ -152,10 +152,10 @@ function ecModel = convertecModel(model, ecModeltype, parameters)
     
     % Reuse the exact same opts as Step 4 to stay consistent
     opts = struct();
-    opts.useNameHeuristic         = true;
-    opts.nameHeuristicRequireNoEC = true;
-    opts.useProtonCoupling        = true;
-    opts.useStoichFallback        = true;
+    opts.useNameHeuristic         = false;
+    opts.nameHeuristicRequireNoEC = false;
+    opts.useProtonCoupling        = false;
+    opts.useStoichFallback        = false;
     opts.keywords = { ...
         'transport','transporter','translocase','symport','antiport', ...
         'channel','permease','pump','carrier','porin','shuttle', ...

@@ -38,7 +38,7 @@ function [model, rxnUpdated, notMatch] = fillCustomKcats(model, customKcats, rxn
         end
     % If the input is a file, read it as a CSV
     elseif isfile(customKcats)
-        data = readtable(customKcats);  % Read CSV as table
+        data = readtable(customKcats, 'Delimiter', ',');  % Read CSV as table
         customKcats = struct();
         % Convert the table to a structure, with fields corresponding to the table columns
         customKcats.proteins = data.proteins;
@@ -172,6 +172,9 @@ function [model, rxnUpdated, notMatch] = fillCustomKcats(model, customKcats, rxn
 
     % Generate a table for unmatched reactions
     idRxns = model.enzymeConstraints.rxns(find(rxnNotMatch));
+    if strcmp(model.enzymeConstraints.ecModeltype, 'basic')
+        idRxns = regexprep(idRxns, '^[0-9]{3}_', '');
+    end
     fullIdx = cellfun(@(x) find(strcmpi(model.rxns, x)), idRxns);
     rxnsNames = model.rxnNames(fullIdx);
     evaluatedRule = evaluatedRule(~cellfun('isempty', evaluatedRule));

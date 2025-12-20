@@ -113,6 +113,7 @@ function [exchangeRxns, exchangeRxnsIndexes, pureTransportRxns, pureTransportInd
     hasForm    = isfield(model,'metFormulas') && numel(model.metFormulas) == numel(model.mets);
     hasCharge  = isfield(model,'metCharges')  && numel(model.metCharges)  == numel(model.mets);
     hasMetComp = isfield(model,'metComps')    && numel(model.metComps)    == numel(model.mets);
+    isDiffusion = isfield(model,'rxnNames')    && numel(model.rxnNames)    == numel(model.rxns);
 
     for j = 1:nRxn
         nz = find(model.S(:,j) ~= 0);
@@ -146,8 +147,12 @@ function [exchangeRxns, exchangeRxnsIndexes, pureTransportRxns, pureTransportInd
         if hasCharge
             sameCharge = (model.metCharges(nz(1)) == model.metCharges(nz(2)));
         end
+        
+        if isDiffusion
+            is_diffusion = contains(model.rxnNames{j}, 'diffusion');
+        end
 
-        if sameName && sameForm && sameCharge
+        if sameName && sameForm && sameCharge && is_diffusion
             pureTransportMask(j) = true;
         end
     end

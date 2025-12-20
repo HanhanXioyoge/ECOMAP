@@ -1,4 +1,4 @@
-function [model, tunedKcats] = sensitivityTuning(model, desiredGrowthRate, foldChange, protToIgnore, verbose)
+function [model, tunedKcats] = sensitivityTuning(model, desiredGrowthRate, foldChange, protToIgnore, verbose, parameters)
 % sensitivityTuning
 %    Function that relaxes the most limiting kcats until a certain growth rate
 %    is reached. The function will update kcats in model.enzymeConstraints.kcat.
@@ -26,8 +26,16 @@ function [model, tunedKcats] = sensitivityTuning(model, desiredGrowthRate, foldC
 %                               tuned.
 %                      oldKcat  kcat values in the input model
 %                      newKcat  kcat values in the output model, after tuning
+%
+% From GECKO:  https://github.com/SysBioChalmers/GECKO/blob/main/src/geckomat/kcat_sensitivity_analysis/sensitivityTuning.m
+
 
 % Default input arguments
+if nargin < 6 || isempty(parameters)
+    parameters = ParameterManager.getParams();
+    if isempty(parameters), error('ParameterManager is not set.'); end
+end
+
 if nargin < 5 || isempty(verbose)
     verbose = true;
 end
@@ -37,16 +45,13 @@ end
 if nargin < 3 || isempty(foldChange)
     foldChange = 10;
 end
-if nargin < 2 || isempty(desiredGrowthRate)
-    desiredGrowthRate = 0.7;
-end
 
 % Initialize model and parameters based on type (basic, isozyme, integrated)
 kcatList = [];
 m = model;
 
 % Ensure growth maximization
-m.c = double(strcmp(m.rxns, 'BIOMASS_Ec_iML1515_core_75p37M'));
+m.c = double(strcmp(m.rxns, parameters.bioRxn));
 
 % Solve linear program for growth rate
 [res, hs] = solveLP(m);
@@ -83,7 +88,7 @@ if strcmp(model.enzymeConstraints.ecModeltype, 'integrated')
         
         % Remove proteins to ignore
         drawFluxes(idxToIgnore) = 0;
-        [~, sel] = min(drawFluxes); % Select minimum flux
+        [x, sel] = min(drawFluxes); % Select minimum flux
         metSel = m.S(:, sel) < 0;   % Negative coefficients (consumption)
         
         % Find the reaction with the largest protein consumption
@@ -99,7 +104,7 @@ if strcmp(model.enzymeConstraints.ecModeltype, 'integrated')
         if ~strcmp(m.enzymeConstraints.source(targetSubRxn), 'sensitivityTuning')
             oldNote = m.enzymeConstraints.notes{targetSubRxn};
             newNote = ['preTuneKcat=' num2str(m.enzymeConstraints.kcat(targetSubRxn)) ' | source:' m.enzymeConstraints.source{targetSubRxn}];
-            if ~isempty(oldNote)
+            if ~isempty(oldNote) || ~ strcmp(oldNote, 'sensitivityTuning')
                 newNote = [oldNote '; ' newNote];
             end
             m.enzymeConstraints.notes{targetSubRxn} = newNote;
@@ -108,8 +113,50 @@ if strcmp(model.enzymeConstraints.ecModeltype, 'integrated')
         m.enzymeConstraints.source(targetSubRxn) = {'sensitivityTuning'};
         m = UpdateSmatrix(m, targetSubRxn);
     end
-else
-    origRxns = extractAfter(m.enzymeConstraints.rxns, 4); % For isozyme/integrated models
+elseif strcmp(model.enzymeConstraints.ecModeltype, 'isozyme')
+    origRxns = m.enzymeConstraints.rxns;                  % For isozyme models
+    idxToIgnore = cellfun(@(x) find(m.enzymeConstraints.rxnEnzMat(:, strcmpi(m.enzymeConstraints.enzymes, x))), protToIgnore, 'UniformOutput', false);
+    idxToIgnore = unique(cat(1, idxToIgnore{:}));
+    idxToIgnore = cellfun(@(x) find(strcmpi(m.rxns, x)), origRxns(idxToIgnore));
+    iteration = 1;
+    while true
+        res = solveLP(m, 0); % Skip parsimonius, only time-consuming
+        if (lastGrowth == res.f)
+            printOrange('No growth increase from increased kcats - check uptake reaction constraints.\n');
+            break;
+        end
+        lastGrowth = res.f;
+        if verbose; disp(['Iteration ' num2str(iteration) ': Growth: ' num2str(lastGrowth)]); end
+        if (lastGrowth >= desiredGrowthRate)
+            break;
+        end
+        
+        iteration = iteration + 1;
+        
+        % Find the highest protein usage flux
+        protPoolStoich = m.S(strcmp(m.mets, 'prot_pool'), :).' ;
+        protPoolStoich(idxToIgnore) = 0;
+        [~, sel] = min(res.x .* protPoolStoich);  % Max consumption
+        
+        kcatList = [kcatList, sel];
+        rxn = m.rxns(sel.');
+        targetSubRxn = strcmp(origRxns, rxn);
+        % Update notes for the reaction being tuned
+
+        if ~strcmp(m.enzymeConstraints.source(targetSubRxn), 'sensitivityTuning')
+            oldNote = m.enzymeConstraints.notes{targetSubRxn};
+            newNote = ['preTuneKcat=' num2str(m.enzymeConstraints.kcat(targetSubRxn)) ' | source:' m.enzymeConstraints.source{targetSubRxn}];
+            if ~isempty(oldNote) || ~ strcmp(oldNote, 'sensitivityTuning')
+                newNote = [oldNote '; ' newNote];
+            end
+            m.enzymeConstraints.notes{targetSubRxn} = newNote;
+        end
+        % Update kcat values for selected reactions
+        m.enzymeConstraints.kcat(targetSubRxn) = m.enzymeConstraints.kcat(targetSubRxn) * foldChange;
+        m = UpdateSmatrix(m, rxn);
+    end
+elseif strcmp(model.enzymeConstraints.ecModeltype, 'basic')
+    origRxns = extractAfter(m.enzymeConstraints.rxns, 4); % For basic models
     idxToIgnore = cellfun(@(x) find(m.enzymeConstraints.rxnEnzMat(:, strcmpi(m.enzymeConstraints.enzymes, x))), protToIgnore, 'UniformOutput', false);
     idxToIgnore = unique(cat(1, idxToIgnore{:}));
     idxToIgnore = cellfun(@(x) find(strcmpi(m.rxns, x)), origRxns(idxToIgnore));
@@ -122,11 +169,11 @@ else
             break;
         end
         lastGrowth = res.f;
+        if verbose; disp(['Iteration ' num2str(iteration) ': Growth: ' num2str(lastGrowth)]); end
         if (lastGrowth >= desiredGrowthRate)
             break;
         end
-        
-        if verbose; disp(['Iteration ' num2str(iteration) ': Growth: ' num2str(lastGrowth)]); end
+
         iteration = iteration + 1;
         
         % Find the highest protein usage flux
@@ -137,10 +184,14 @@ else
         kcatList = [kcatList, sel];
         rxn = m.rxns(sel.');
         targetSubRxns = strcmp(origRxns, rxn);
-        
+        % Update notes for the reaction being tuned
+
+        if ~strcmp(m.enzymeConstraints.source(targetSubRxns), 'sensitivityTuning')
+            m.enzymeConstraints.notes(targetSubRxns) = {'sensitivityTuning'};
+        end
         % Update kcat values for selected reactions
         m.enzymeConstraints.kcat(targetSubRxns) = m.enzymeConstraints.kcat(targetSubRxns) * foldChange;
-        m = applyKcatConstraints(m, rxn);
+        m = UpdateSmatrix(m, rxn);
     end
 end
 

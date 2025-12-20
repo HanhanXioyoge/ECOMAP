@@ -37,8 +37,8 @@ function obj = ecYeastParameterManagement()
     obj.params.taxonomicID         = '559292';                  % Get complex data
 
     % ===== Core reaction IDs =====
-    obj.params.c_source = '';                           % Carbon source exchange reaction
-    obj.params.bioRxn   = '';                           % Biomass reaction ID
+    obj.params.c_source = 'r_1714';                           % Carbon source exchange reaction
+    obj.params.bioRxn   = 'r_2111';                           % Biomass reaction ID
 
     % ===== PRESTO OPTION  =====
     % Specify whether the approach should be run parallelized

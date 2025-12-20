@@ -29,7 +29,7 @@ function model = loadJSONmodel(model, filename)
     % Get reaction names, gene-reaction rules, and build the reaction-gene matrix
     model.rxnNames = cellfun(@(x) x.name, data.reactions, 'UniformOutput', false);
     model.grRules = cellfun(@(x) x.gene_reaction_rule, data.reactions, 'UniformOutput', false);
-    model.rxnGeneMat = buildRxnGeneMat(model.genes, model.grRules);
+    model.rxnGeneMat = buildRxnGeneMat(model);
     % model.subSystems = {};  % To be determined
     model.eccodes = [];
     % model.eccodes = buildEccodes(data.reactions);
@@ -79,8 +79,7 @@ function model = loadJSONmodel(model, filename)
     
     % Build reaction-enzyme association matrix using gene-reaction rules
     % Use model.genes (not model.enzymeConstraints.genes as it is not created yet)
-    rxnEnzMat = buildRxnGeneMat(model.genes, model.grRules(rxnIdx));
-    rxnEnzMat = full(rxnEnzMat);  % Convert sparse matrix to full double matrix
+    rxnEnzMat = buildRxnGeneMat(model);
     
     % Extract EC codes corresponding to each enzyme-constrained reaction
     %{
@@ -124,7 +123,7 @@ function model = loadJSONmodel(model, filename)
                                      'f', data.enzyme_constraint.enzyme_mass_fraction, ...                  % Mass fraction of enzymes (double)
                                      'sigma', data.enzyme_constraint.average_saturation, ...                % Enzyme saturation factor (double)
                                      'rxns', {enzyme_rxns'}, ...                                             % Reactions involving enzymes
-                                     'kcat', kcat_values, ...                                               % Enzyme kinetic parameters
+                                     'kcat', kcat_values/3600, ...                                               % Enzyme kinetic parameters
                                      'source', {sourse_values}, ...                                         % kcat source
                                      'notes', {note_values}, ...            
                                      'eccodes', {eccodes_values}, ...                                       % Enzyme ec number

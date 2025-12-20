@@ -81,8 +81,9 @@ function model = updateProtPool(model, updateFfactor, Ptot, f, sigma, parameters
                 
                 % Match genes to UniProt IDs
                 a = cellfun(@(gene) any(contains(dbStruct.genes, gene)), genes);
-                b = cellfun(@(gene) find(contains(dbStruct.genes, gene), 1), genes);
-                uniprot = dbStruct.ID(b(a));
+                b = cellfun(@(gene) find(contains(dbStruct.genes, gene), 1, 'first'), genes, 'UniformOutput', false);
+                b_values = cell2mat(b(a));
+                uniprot = dbStruct.ID(b_values);
                 level(~a) = [];  % Remove levels for unmatched genes
                 clear protData;
                 

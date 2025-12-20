@@ -38,17 +38,17 @@ function obj = eciML1515ParameterManagement()
 
     % ===== Core reaction IDs =====
     obj.params.c_source = 'EX_glc__D_e';                         % Carbon source exchange reaction
-    obj.params.bioRxn   = 'BIOMASS_Ec_iML1515_core_75p37M';     % Biomass reaction ID
+    % obj.params.bioRxn   = 'BIOMASS_Ec_iML1515_core_75p37M';      % Biomass reaction ID
+    obj.params.bioRxn   = 'biomass';                             % Biomass reaction ID
 
     % ===== PRESTO OPTION  =====
     % Specify whether the approach should be run parallelized
 
     obj.params.PRESTO.runParallel = true;
-    obj.params.PRESTO.ncpu = 8;
+    obj.params.PRESTO.ncpu = 16;
     obj.params.PRESTO.nIter = 50;                               % set the number of iterations of k-fold cross-validation
     % correction parameters
     obj.params.PRESTO.epsilon = 1e5;
     obj.params.PRESTO.lambda = 1e-5;
     obj.params.PRESTO.theta = 0.6;
-
 end  

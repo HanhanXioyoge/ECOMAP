@@ -37,8 +37,8 @@ function obj = eciCW773ParameterManagement()
     obj.params.taxonomicID         = '196627';                % Get complex data
 
     % ===== Core reaction IDs =====
-    obj.params.c_source = '';                           % Carbon source exchange reaction
-    obj.params.bioRxn   = '';                           % Biomass reaction ID
+    obj.params.c_source = 'EX_glc_e';                           % Carbon source exchange reaction
+    obj.params.bioRxn   = 'CG_biomass_cgl_ATCC13032';                           % Biomass reaction ID
 
     % ===== Enzyme pseudo-metabolite compartment =====
     obj.params.enzyme_comp = 'cytoplasm';               % e.g., 'cytoplasm', 'periplasm'

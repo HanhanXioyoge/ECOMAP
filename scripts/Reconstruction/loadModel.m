@@ -84,13 +84,15 @@ function model = loadModel(filename, modeltype, modelDir, parameters)
     end
 
     % 8) Load file (wrap errors for context)
+    model = loader(model, filename);
+    %{
     try
         model = loader(model, filename);
     catch ME
         % Re-throw with clearer identifier and file context
         error('loadModel:LoadFailed', 'Failed to load model from ''%s'': %s', filename, ME.message);
     end
-
+    %}
     % 9) Standardize model structure (wrap errors)
     try
         model.id = nameNoExt;
