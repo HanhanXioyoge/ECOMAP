@@ -1,4 +1,4 @@
-	Substrate	Uptake	BIOMASS_Ec_iML1515_core_75p37M	EX_ac_e	EX_etoh_e	EX_glyc_e	EX_pyr_e	EX_co2_e	EX_o2_e	EX_nh4_e	OxAvail	Media
+	Substrate	Uptake	biomass	EX_ac_e	EX_etoh_e	EX_glyc_e	EX_pyr_e	EX_co2_e	EX_o2_e	EX_nh4_e	OxAvail	Media
 1	EX_glc__D_e	Nan	0.74	Nan	Nan	Nan	Nan	Nan	Nan	Nan	aerobic	MIN
 2	EX_malt_e	Nan	0.52	Nan	Nan	Nan	Nan	Nan	Nan	Nan	aerobic	MIN
 3	EX_ac_e	Nan	0.305	Nan	Nan	Nan	Nan	Nan	Nan	Nan	aerobic	MIN

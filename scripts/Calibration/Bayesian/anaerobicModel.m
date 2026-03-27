@@ -1,4 +1,8 @@
-function model = anaerobicModel(model, org_name)
+function model = anaerobicModel(model, org_name, EX_o2)
+
+if nargin < 3
+    EX_o2 = ''; 
+end
 
 if strcmp(org_name, 'Saccharomyces cerevisiae')
     GAM   = 58.1988;
@@ -54,6 +58,8 @@ elseif strcmp(org_name, 'Escherichia coli')
     model.lb(strcmp(model.rxns, 'EX_o2_e')) = 0;
 elseif strcmp(org_name, 'Corynebacterium glutamicum')
     model.lb(strcmp(model.rxns, 'EX_o2_e')) = 0;
+else
+    model.lb(strcmp(model.rxns, EX_o2)) = 0;
 end
 end
 

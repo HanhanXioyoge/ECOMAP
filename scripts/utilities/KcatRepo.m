@@ -1,24 +1,30 @@
 classdef KcatRepo < handle
 % KCATREPO
-%   A lightweight repository for storing multiple kcat vectors for ONE model.
+%   A lightweight repository for storing multiple kcat vectors with Umin and Xi values for ONE model.
 %   Stored data fields are minimal and stable for later statistics:
 %     - modelName : string
 %     - organism  : string
-%     - groups    : struct array with fields {name, kcat, note}
+%     - groups    : struct array with fields {name, kcat, sluiceParams, note}
 %
 %   note is defined as: "method | dataTag"
 %
+%   IMPORTANT: Each kcat set has a corresponding sluice parameters (from GAUKS calibration).
+%   The sluiceParams field is a struct with fields:
+%     - reactions: cell array of exchange reaction names (e.g., {'EX_glc__D_e', ...})
+%     - umin: numeric array of Umin values for each reaction
+%     - xi: numeric array of Xi (proteomic cost) values for each reaction
+%
 %   Recommended usage:
 %     repo = KcatRepo("eciML1515_integrated","Escherichia coli");
-%     repo.addGroup("Init", kcat0, "InitAssign", "DB+DL");
-%     repo.addGroup("Bayes_Total", kcat1, "ABC-SMC", "GrowthRates+UnconstrainedMaxGrowth");
+%     repo.addGroup("Init", kcat0, [], "InitAssign", "DB+DL");
+%     repo.addGroup("Bayes_Total", kcat1, sluiceParams, "ABC-SMC", "GrowthRates+UnconstrainedMaxGrowth");
 %     repo.save(outDir);
 %     repo2 = KcatRepo.loadMat(fullfile(outDir,"eciML1515_integrated_kcatRepo.mat"));
 
     properties
         modelName (1,1) string = ""
         organism  (1,1) string = ""
-        groups                 = struct('name',{},'kcat',{},'note',{})
+        groups                 = struct('name',{},'kcat',{},'sluiceParams',{},'note',{})
     end
 
     methods
@@ -27,20 +33,26 @@ classdef KcatRepo < handle
             if nargin >= 2, obj.organism  = string(organism);  end
         end
 
-        function addGroup(obj, name, kcatVec, method, dataTag, overwrite)
+        function addGroup(obj, name, kcatVec, sluiceParams, method, dataTag, overwrite)
             % ADDGROUP
-            %   Add/replace a named kcat vector.
+            %   Add/replace a named kcat vector with corresponding sluice parameters (Umin + Xi).
             %
             % INPUT
-            %   name      : group name, e.g. "Init", "Bayes_Total", "GKC_afterBayes"
+            %   name      : group name, e.g. "Init", "Bayes_Total", "GAUKS_afterBayes"
             %   kcatVec   : numeric vector (will be stored as a column)
+            %   sluiceParams: struct with fields {reactions, umin, xi}
+            %               - reactions: cell array of exchange reaction names
+            %               - umin: numeric array of Umin values for each reaction
+            %               - xi: numeric array of Xi (proteomic cost) values
+            %               Pass empty [] if no sluice params (e.g., initial kcat)
             %   method    : method name for note (string)
             %   dataTag   : data used for note (string)
             %   overwrite : true/false (default false)
 
-            if nargin < 6 || isempty(overwrite), overwrite = false; end
-            if nargin < 5, dataTag = ""; end
-            if nargin < 4, method  = ""; end
+            if nargin < 7 || isempty(overwrite), overwrite = false; end
+            if nargin < 6, dataTag = ""; end
+            if nargin < 5, method  = ""; end
+            if nargin < 4, sluiceParams = struct('reactions',{{}}, 'umin',[], 'xi',[]); end
 
             name   = string(name);
             method = string(method);
@@ -50,6 +62,17 @@ classdef KcatRepo < handle
                 error('KcatRepo:addGroup', 'kcatVec must be a non-empty numeric vector.');
             end
             kcatVec = kcatVec(:); % force column
+
+            % Validate sluiceParams
+            if isempty(sluiceParams)
+                sluiceParams = struct('reactions',{{}}, 'umin',[], 'xi',[]);
+            elseif ~isstruct(sluiceParams) || ~isfield(sluiceParams, 'reactions')
+                error('KcatRepo:addGroup', 'sluiceParams must be a struct with fields "reactions", "umin", and "xi".');
+            end
+            % Ensure xi field exists
+            if ~isfield(sluiceParams, 'xi')
+                sluiceParams.xi = [];
+            end
 
             % Enforce consistent length across groups (so later stats are easy)
             if ~isempty(obj.groups)
@@ -64,25 +87,71 @@ classdef KcatRepo < handle
 
             idx = find(strcmp(string({obj.groups.name}), name), 1);
             if isempty(idx)
-                obj.groups(end+1) = struct('name',name,'kcat',kcatVec,'note',note);
+                obj.groups(end+1) = struct('name',name,'kcat',kcatVec,'sluiceParams',sluiceParams,'note',note);
             else
                 if ~overwrite
                     error('KcatRepo:addGroup', ...
                         'Group "%s" already exists. Use overwrite=true to replace.', name);
                 end
                 obj.groups(idx).kcat = kcatVec;
+                obj.groups(idx).sluiceParams = sluiceParams;
                 obj.groups(idx).note = note;
             end
         end
 
-        function kcatVec = getGroup(obj, name)
+        function [kcatVec, sluiceParams] = getGroup(obj, name)
             % GETGROUP
+            %   Retrieve kcat vector and corresponding sluice parameters (Umin + Xi).
+            %
+            % OUTPUT
+            %   kcatVec      : numeric vector
+            %   sluiceParams : struct with fields {reactions, umin, xi}
             name = string(name);
             idx = find(strcmp(string({obj.groups.name}), name), 1);
             if isempty(idx)
                 error('KcatRepo:getGroup', 'Group "%s" not found.', name);
             end
             kcatVec = obj.groups(idx).kcat;
+            sluiceParams = obj.groups(idx).sluiceParams;
+        end
+
+        function model = applyGroupToModel(obj, name, baseModel)
+            % APPLYGROUPTOMODEL
+            %   Apply a saved kcat set and sluice parameters (Umin + Xi) to a model.
+            %
+            %   INPUT
+            %   name      : group name to retrieve
+            %   baseModel : model with sluice structure (from applySluiceStructure)
+            %
+            %   OUTPUT
+            %   model     : model with kcat, Umin, and Xi applied
+            %
+            %   Usage:
+            %     repo = KcatRepo.loadMat('eciML1515_integrated_kcatRepo.mat');
+            %     model = applySluiceStructure(baseModel, ex_rxn_list);
+            %     model = repo.applyGroupToModel('Bayes_FullData', model);
+
+            name = string(name);
+            idx = find(strcmp(string({obj.groups.name}), name), 1);
+            if isempty(idx)
+                error('KcatRepo:applyGroupToModel', 'Group "%s" not found.', name);
+            end
+
+            % Apply kcat
+            kcatVec = obj.groups(idx).kcat;
+            baseModel.enzymeConstraints.kcat = kcatVec;
+            model = UpdateSmatrix(baseModel);
+
+            % Apply Umin and Xi if available
+            sluiceParams = obj.groups(idx).sluiceParams;
+            if ~isempty(sluiceParams) && ~isempty(sluiceParams.reactions)
+                for i = 1:length(sluiceParams.reactions)
+                    ex_rxn = sluiceParams.reactions{i};
+                    umin_val = sluiceParams.umin(i);
+                    xi_val = sluiceParams.xi(i);
+                    model = setSluiceParams(model, ex_rxn, umin_val, xi_val);
+                end
+            end
         end
 
         function names = listGroups(obj)
