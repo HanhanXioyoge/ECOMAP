@@ -23,72 +23,145 @@ ECOMAP provides a unified framework for:
 ECOMAP/
 ├── README.md                    # This file
 ├── setup.m                      # MATLAB path setup script
-├── LICENSE.md                   # MIT License
+├── images/                      # Framework diagrams
 │
-├── images/                      # Framework diagrams and figures
-│
-├── scripts/                     # Core functionality modules
+├── scripts/                     # Core functionality
 │   ├── Reconstruction/          # Model building and loading
-│   │   ├── loadModel.m          # Unified model loader (XML/JSON/YAML/GECKO/ECMpy)
-│   │   ├── convertecModel.m     # GEM to ecModel conversion
-│   │   ├── fillEnzymeInformation.m
-│   │   ├── getkcatfromDatabase.m
-│   │   └── buildEnzConstrRxnSet.m
-│   │
-│   ├── Calibration/             # Model calibration
-│   │   ├── GAUKS.m              # Genetic Algorithm calibration
-│   │   ├── Bayesian/            # Bayesian calibration methods
-│   │   │   ├── abc_max.m        # Approximate Bayesian Computation
-│   │   │   ├── bayesianTuning.m
-│   │   │   ├── load13CData.m
-│   │   │   └── evaluateKcatRMSE.m
-│   │   └── PRESTO/              # PRESTO calibration
-│   │       ├── PRESTO.m
-│   │       └── BatchModelgeneration.m
-│   │
-│   ├── Analysis/                # Model analysis and visualization
-│   │   ├── ecFVA.m              # Enzyme-constrained FVA
-│   │   ├── plotMultiECDF_Log10.m
-│   │   └── knockout_heatmap.m
-│   │
+│   ├── Calibration/             # Bayesian, GAUKS, PRESTO methods
+│   ├── Analysis/                # FVA, visualization, knockout
 │   ├── GUI/                     # Graphical user interface
-│   │   └── Core/ReconstructionApp.m
-│   │
-│   ├── utilities/               # Helper utilities
-│   │   ├── KcatRepo.m           # kcat repository management
-│   │   └── buildStoichiometricMatrix.m
-│   │
-│   └── ParameterManagement/     # Parameter management
+│   ├── utilities/               # KcatRepo, model I/O
+│   └── ParameterManagement/     # Parameter management system
 │
-├── tutorial/                    # MATLAB Live Script tutorials
-│   ├── ecYeast_calibration_tutorial.mlx
-│   ├── ecYeast_analysis_tutorial.mlx
-│   ├── eciML1515_calibration_tutorial.mlx
-│   ├── eciML1515_analysis_tutorial.mlx
-│   ├── eciCW773_calibration_tutorial.mlx
-│   └── eciCW773_analysis_tutorial.mlx
+├── tutorial/                    # MATLAB Live Script tutorials (see below)
 │
-├── ecYeast/                    # S. cerevisiae (yeast) project
-│   ├── models/                  # ecYeast9_*.mat, ecYeastGEM.yml
-│   ├── data/                    # Proteomics, growth rates, flux data
-│   ├── analysis/                # Bayesian states, benchmarks
-│   └── ecYeast9PRESTOConfiguration.m
-│
+├── ecYeast/                    # S. cerevisiae project
 ├── eciML1515/                  # E. coli iML1515 project
-│   ├── models/                  # eciML1515_*.mat, iML1515.xml
-│   ├── data/                    # 13C flux, proteomics, growth rates
-│   ├── analysis/                # Bayesian states, benchmarks
-│   └── eciML1515PRESTOConfiguration.m
-│
 ├── eciCW773/                   # C. glutamicum project
-│   ├── models/
-│   ├── data/
-│   └── analysis/
-│
 ├── ecHuman/                    # Human cell model project
-│
 └── ecModelGEM/                 # Generic ecModel GEM framework
 ```
+
+Each organism project follows the structure:
+```
+[project]/
+├── models/           # Model files (.mat, .xml, .yml)
+├── data/             # Experimental data (see Data Preparation)
+└── analysis/         # Calibration results and benchmarks
+```
+
+---
+
+## Tutorial Files
+
+The `tutorial/` directory contains MATLAB Live Scripts (.mlx) for step-by-step guidance:
+
+| Tutorial | Description |
+|----------|-------------|
+| **tutorial.mlx** | General introduction to ECOMAP |
+| **ecYeast_reconstruction_tutorial.mlx** | Build ecYeast model from GEM |
+| **ecYeast_calibration_tutorial.mlx** | Calibrate ecYeast with proteomics and growth data |
+| **ecYeast_analysis_tutorial.mlx** | Analyze ecYeast predictions and benchmarks |
+| **eciML1515_reconstruction_tutorial.mlx** | Build E. coli iML1515 ecModel |
+| **eciML1515_calibration_tutorial.mlx** | Calibrate E. coli with Bayesian/PRESTO methods |
+| **eciML1515_analysis_tutorial.mlx** | Analyze E. coli model performance |
+| **eciCW773_reconstruction_tutorial.mlx** | Build C. glutamicum ecModel |
+| **eciCW773_calibration_tutorial.mlx** | Calibrate C. glutamicum model |
+| **eciCW773_analysis_tutorial.mlx** | Analyze C. glutamicum predictions |
+| **ecHuman_tutorial.mlx** | Human cell model reconstruction and analysis |
+
+### Running Tutorials
+
+1. Open MATLAB
+2. Navigate to the `tutorial/` folder
+3. Double-click the desired `.mlx` file
+4. Follow the inline instructions and run each cell sequentially
+
+---
+
+## Data Preparation
+
+Each organism project (e.g., `ecYeast/`, `eciML1515/`) requires data files in the `data/` subdirectory. Below is the complete list based on the ecYeast project structure.
+
+### Core Calibration Data
+
+| File | Purpose | Calibration Method | Format |
+|------|---------|-------------------|--------|
+| **growth_rates.tsv** | Growth rate measurements for sensitivity analysis | `sensitivityTuning`, `MulticonditionsensitivityTuning` | Tab-separated with condition name and growth rate |
+| **BayesianGrowthRates.tsv** | Growth rate data for Bayesian parameter estimation | `bayesianTuning` (ABC method) | Tab-separated with substrate and growth rate |
+| **UnconstrainedMaxGrowth.tsv** | Maximum growth rate constraints for GAUKS calibration | `GAUKS` | Tab-separated: condition name, max growth rate |
+| **csource.tsv** | Carbon source information and uptake bounds | PRESTO configuration | Tab-separated |
+
+### Multi-Omics Data
+
+| File | Purpose | Calibration Method | Format |
+|------|---------|-------------------|--------|
+| **abs_proteomics.tsv** | Absolute protein abundances (fps) for PRESTO | `PRESTO`, `getconditions` | Gene ID, UniProt ID, abundance |
+| **paxDB.tsv** | Protein abundance database for cross-referencing | Model annotation | Gene ID, abundance score |
+| **total_protein.tsv** | Total protein content for protein pool calculation | `updateProtPool` | Total protein (g/gDCW) |
+
+### Flux Data
+
+| File | Purpose | Calibration Method | Format |
+|------|---------|-------------------|--------|
+| **13CFluxdata.tsv** | 13C metabolic flux data for flux balance constraints | `bayesianTuning` (use13Cflux=true) | Tab-separated: reaction ID, flux value, std |
+| **growthdata/** (folder) | Substrate uptake and growth data for verification | Model validation | Contains Aerobic.tsv, Anaerobic.tsv, Mul_csources.tsv |
+
+### Model Annotation Data
+
+| File | Purpose | Used By | Format |
+|------|---------|---------|--------|
+| **uniprot.tsv** | UniProt ID mapping and protein sequences | `fillEnzymeInformation`, `writeInputFile` | Gene ID, UniProt ID, sequence |
+| **metInfo.tsv** | Metabolite information (SMILES, InChI, etc.) | `getMetinfo` | Metabolite ID, identifiers |
+| **ComplexPortal.json** | Protein complex annotations | `applyComplexdata` | JSON format |
+| **kcatData/** (folder) | kcat values from databases (BRENDA, SABIO) | `getkcatfromDatabase`, `dbKcatMatch` | TSV with EC number, kcat, source |
+
+### Data File Formats
+
+#### growth_rates.tsv / BayesianGrowthRates.tsv
+```
+Substrate    GrowthRate
+Glucose      0.41
+Acetate      0.21
+Ethanol      0.12
+```
+
+#### UnconstrainedMaxGrowth.tsv
+```
+ConditionName    MaxGrowthRate
+Glucose          0.41
+Ethanol          0.12
+```
+
+#### abs_proteomics.tsv
+```
+gene_id    protein_id    abundance
+YAL038W    P00560       1234.5
+YBR019C    P32167       567.8
+```
+
+#### 13CFluxdata.tsv
+```
+reaction_id    flux    flux_std
+EX_glc_e       10.5    0.8
+BIOMASS        0.41    0.02
+```
+
+#### kcatData/kcat_values.tsv
+```
+ec_number    kcat    source
+2.7.1.1      120     BRENDA
+1.1.1.1      85      SABIO
+```
+
+### Model File Formats
+
+| Format | Extension | Description |
+|--------|-----------|-------------|
+| SBML | `.xml` | Standard exchange format |
+| JSON | `.json` | GECKO, ECMpy style |
+| YAML | `.yml`, `.yaml` | Yeast9, ecYeastGEM |
+| MATLAB | `.mat` | Various ecModel types |
 
 ---
 
@@ -119,104 +192,6 @@ setup
 >> which loadModel.m
 >> which convertecModel.m
 ```
-
----
-
-## Tutorial Files
-
-The `tutorial/` directory contains MATLAB Live Scripts (.mlx) for step-by-step guidance:
-
-| Tutorial | Description |
-|----------|-------------|
-| **ecYeast_calibration_tutorial.mlx** | Calibrate ecYeast model using proteomics and growth data |
-| **ecYeast_analysis_tutorial.mlx** | Analyze ecYeast model predictions and benchmarks |
-| **eciML1515_calibration_tutorial.mlx** | Calibrate E. coli iML1515 with multi-omics data |
-| **eciML1515_analysis_tutorial.mlx** | Analyze E. coli model performance |
-| **eciCW773_calibration_tutorial.mlx** | Calibrate C. glutamicum model |
-| **eciCW773_analysis_tutorial.mlx** | Analyze C. glutamicum predictions |
-
-### Running Tutorials
-
-1. Open MATLAB
-2. Navigate to the `tutorial/` folder
-3. Double-click the desired `.mlx` file
-4. Follow the inline instructions and run each cell sequentially
-
----
-
-## Data Preparation
-
-### Required Data Files
-
-Each organism project (e.g., `ecYeast/`, `eciML1515/`) requires data in the `data/` subdirectory:
-
-#### 1. Growth Rates Data
-
-**File**: `growth_rates.tsv` or `BayesianGrowthRates.tsv`
-
-| Column | Description | Example |
-|--------|-------------|---------|
-| condition | Experimental condition | Glucose, Acetate |
-| growth_rate | Specific growth rate (h⁻¹) | 0.41 |
-| std | Standard deviation | 0.02 |
-
-**Example**:
-```
-condition	growth_rate	std
-Glucose	0.41	0.02
-Acetate	0.21	0.01
-```
-
-#### 2. Proteomics Data
-
-**File**: `abs_proteomics.tsv`
-
-| Column | Description | Example |
-|--------|-------------|---------|
-| gene_id | Gene identifier | b0001 |
-| protein_id | UniProt ID | P0A8V2 |
-| abundance | Protein abundance (fps) | 1234.5 |
-
-#### 3. 13C Flux Data
-
-**File**: `13CFluxdata.tsv` or `13CFluxdata.xlsx`
-
-| Column | Description | Example |
-|--------|-------------|---------|
-| reaction_id | Reaction identifier | EX_glc_e |
-| flux | Flux value | 10.5 |
-| flux_std | Standard deviation | 0.8 |
-
-#### 4. kcat Database (Optional)
-
-**Directory**: `kcatData/`
-
-**File**: `kcat_values.tsv`
-
-| Column | Description | Example |
-|--------|-------------|---------|
-| ec_number | EC number | 2.7.1.1 |
-| kcat | turnover number (s⁻¹) | 120 |
-| source | Database source | BRENDA |
-
-#### 5. UniProt Mapping
-
-**File**: `uniprot.tsv`
-
-| Column | Description | Example |
-|--------|-------------|---------|
-| gene_id | Gene identifier | b0001 |
-| uniprot_id | UniProt ID | P0A8V2 |
-| sequence | Protein sequence | MSDK... |
-
-### Model File Formats
-
-| Format | Extension | Description |
-|--------|-----------|-------------|
-| SBML | `.xml` | Standard exchange format |
-| JSON | `.json` | GECKO, ECMpy style |
-| YAML | `.yml`, `.yaml` | Yeast9, ecYeastGEM |
-| MATLAB | `.mat` | Various ecModel types |
 
 ---
 
@@ -264,39 +239,6 @@ plotMultiECDF_Log10(resultsFolder);
 
 ---
 
-## Project-Specific Usage
-
-### E. coli (eciML1515)
-
-```matlab
-% Initialize project
-InitializeECOMAPproject('eciML1515');
-
-% Run full pipeline
-runReconstruction;
-runCalibration;
-runAnalysis;
-```
-
-### Yeast (ecYeast)
-
-```matlab
-% Initialize project
-InitializeECOMAPproject('ecYeast');
-
-% Calibrate with proteomics
-bayesianState = bayesianTuning('ecYeast');
-```
-
-### C. glutamicum (eciCW773)
-
-```matlab
-% Initialize project
-InitializeECOMAPproject('eciCW773');
-```
-
----
-
 ## Key Functions Reference
 
 ### Reconstruction
@@ -311,11 +253,12 @@ InitializeECOMAPproject('eciCW773');
 ### Calibration
 | Function | Description |
 |----------|-------------|
-| `GAUKS.m` | Genetic Algorithm calibration |
+| `GAUKS.m` | Growth-Anchored kcat calibration |
 | `abc_max.m` | Approximate Bayesian Computation |
 | `bayesianTuning.m` | MCMC-based Bayesian tuning |
 | `PRESTO.m` | Protein Reinforcement calibration |
-| `load13CData.m` | Load 13C flux experimental data |
+| `sensitivityTuning.m` | Single-condition sensitivity analysis |
+| `MulticonditionsensitivityTuning.m` | Multi-condition sensitivity analysis |
 
 ### Analysis
 | Function | Description |
