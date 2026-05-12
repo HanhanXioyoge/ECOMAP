@@ -85,11 +85,11 @@ Each organism project (e.g., `ecYeast/`, `eciML1515/`) requires data files in th
 
 | File | Purpose | Calibration Method | Format |
 |------|---------|-------------------|--------|
-| **BayesianGrowthRates.tsv** | Growth rate data | `sensitivityTuning`, `MulticonditionsensitivityTuning`, `bayesianTuning` (ABC method) | Tab-separated with substrate and growth rate |
-| **UnconstrainedMaxGrowth.tsv** | Maximum growth rate constraints for GAUKS calibration | `bayesianTuning` (ABC method) ,`GAUKS` | Tab-separated: condition name, max growth rate |
-| **13CFluxdata.tsv** | 13C metabolic flux data for flux balance constraints | `bayesianTuning` (use13Cflux=true) | Tab-separated: reaction ID, flux value, std |
-| **growth_rates.tsv** | Growth rate measurements| `PRESTO` | Tab-separated with condition name and growth rate |
-| **csource.tsv** | Carbon source information and uptake bounds | `PRESTO` | Tab-separated |
+| **growth_rates.tsv** | Maximum growth rate constraints | `PRESTO` | Tab-separated: condition name, max growth rate |
+| **BayesianGrowthRates.tsv** | Growth rates with detailed flux data | `bayesianTuning` (useConstraint=true) | Tab-separated with substrate, uptake, and reaction fluxes |
+| **UnconstrainedMaxGrowth.tsv** | Growth rates without substrate constraints | `bayesianTuning` (useUnconstrained=true), `GAUKS` | Tab-separated with substrate and reaction fluxes |
+| **13CFluxdata.tsv** | 13C metabolic flux data | `bayesianTuning` (use13Cflux=true) | Tab-separated: reaction ID, flux value, std |
+| **csource.tsv** | Carbon source exchange reaction fluxes | `PRESTO` | Matrix format: reactions × conditions |
 
 ### Multi-Omics Data
 
@@ -165,11 +165,23 @@ YBR019C    P32167    567.8
 ```
 
 #### 13CFluxdata.tsv
+13C metabolic flux data with constraint and flux types.
 ```
-reaction_id    flux    flux_std
-EX_glc_e    10.5    0.8
-BIOMASS    0.41    0.02
+Type       RxnName                  Carbon    Direction    Cond1     Cond2     Cond3     Cond4
+constraint r_2111                                0.405      0.150     0.300     0.400
+constraint r_1714                               -16.731     -1.560     -4.900     -8.230
+constraint r_1672                                28.759      3.610     10.320    13.740
+constraint r_1992                                -3.269      Nan       Nan       Nan
+flux      r_0534                    6          {1}        16.731     1.560     4.900     8.230
+flux      r_0466                    6          {1}         1.781     0.853     1.450     1.243
+flux      r_0467                    6          {1}        14.168     0.393     2.940     6.411
+...
 ```
+- **Type**: `constraint` (growth/substrate constraints) or `flux` (reaction flux values)
+- **RxnName**: Reaction identifier
+- **Carbon**: Number of carbon atoms (only for flux type)
+- **Direction**: Reaction directionality notation (e.g., {1}, {-1;1})
+- **Cond1-Cond4**: Flux values under different experimental conditions
 
 #### kcatData/kcat_values.tsv
 ```
