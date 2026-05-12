@@ -1,4 +1,4 @@
 scripts\external_kcat_prediction\CatPred\data
 scripts\external_kcat_prediction\CatPred\esm2_t33_650M_UR50D.pt
 scripts\external_kcat_prediction\UniKP\prot_t5_xl_uniref50
-.claude/
+.claude\settings.local.json
