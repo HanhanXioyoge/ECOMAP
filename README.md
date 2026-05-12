@@ -183,12 +183,6 @@ flux      r_0467                    6          {1}        14.168     0.393     2
 - **Direction**: Reaction directionality notation (e.g., {1}, {-1;1})
 - **Cond1-Cond4**: Flux values under different experimental conditions
 
-#### kcatData/kcat_values.tsv
-```
-ec_number    kcat    source
-2.7.1.1    120    BRENDA
-1.1.1.1    85    SABIO
-```
 
 ### Model File Formats
 
@@ -222,58 +216,8 @@ cd ECOMAP
 ```matlab
 setup
 ```
-
-3. Verify installation:
-```matlab
->> which loadModel.m
->> which convertecModel.m
-```
-
 ---
 
-## Quick Start
-
-### 1. Load a Model
-
-```matlab
-% Load from SBML
-model = loadModel('iML1515.xml');
-
-% Load from YAML
-model = loadModel('ecYeastGEM.yml');
-
-% Load from MAT
-model = loadModel('eciML1515_PRESTO.mat');
-```
-
-### 2. Convert GEM to ecModel
-
-```matlab
-% Convert to enzyme-constrained model
-ecModel = convertecModel(model, 'kcatSource', 'BRENDA');
-```
-
-### 3. Calibrate Model
-
-```matlab
-% Bayesian calibration
-[bayesianState, RMSE] = abc_max(projectFolder);
-
-% PRESTO calibration
-[calibratedModel, params] = PRESTO(projectFolder);
-```
-
-### 4. Analyze Model
-
-```matlab
-% Flux variability analysis
-[fmin, fmax] = ecFVA(ecModel);
-
-% Multi-condition analysis
-plotMultiECDF_Log10(resultsFolder);
-```
-
----
 
 ## Key Functions Reference
 
@@ -295,29 +239,6 @@ plotMultiECDF_Log10(resultsFolder);
 | `PRESTO.m` | Protein Reinforcement calibration |
 | `sensitivityTuning.m` | Single-condition sensitivity analysis |
 | `MulticonditionsensitivityTuning.m` | Multi-condition sensitivity analysis |
-
-### Analysis
-| Function | Description |
-|----------|-------------|
-| `ecFVA.m` | Enzyme-constrained FVA |
-| `plotEcFVA.m` | Visualize FVA results |
-| `knockout_heatmap.m` | Gene knockout analysis |
-| `plotMultiECDF_Log10.m` | Multi-condition CDF plots |
-| `plotRMSEBar.m` | RMSE comparison plots |
-
----
-
-## Output Files
-
-After calibration/analysis, results are stored in each project's `analysis/` folder:
-
-| File | Description |
-|------|-------------|
-| `bayesianState_*.mat` | Bayesian posterior states |
-| `MultiCondition_Summary.tsv` | Multi-condition results |
-| `Benchmark_*.png` | Prediction benchmarks |
-| `*_kcatRepo.mat` | kcat repository |
-| `MultiCondition_KcatChanges.tsv` | kcat parameter changes |
 
 ---
 
