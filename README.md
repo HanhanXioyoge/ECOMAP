@@ -3,7 +3,7 @@
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> A comprehensive MATLAB-based toolbox for building, calibrating, and analyzing enzyme-constrained metabolic models (ecModels)
+> A comprehensive MATLAB-based toolbox for reconstructing, calibrating, and analyzing enzyme-constrained metabolic models (ecModels)
 
 ## Framework Overview
 
