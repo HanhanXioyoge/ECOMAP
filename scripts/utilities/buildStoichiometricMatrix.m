@@ -19,6 +19,13 @@ function S = buildStoichiometricMatrix(mets, reactions)
         metabolites = reactions{rxnIdx}.metabolites;
         
         metIDs = fieldnames(metabolites);
+        % Handle MATLAB jsondecode: only remove 'x' prefix if next char is a digit
+        % (MATLAB adds 'x' to fieldnames starting with a digit)
+        for j = 1:numel(metIDs)
+            if startsWith(metIDs{j}, 'x') && isstrprop(metIDs{j}(2), 'digit')
+                metIDs{j} = metIDs{j}(2:end);
+            end
+        end
         stoich = struct2array(metabolites); 
         
         if ~isnumeric(stoich)

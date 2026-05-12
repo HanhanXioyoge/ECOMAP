@@ -159,7 +159,7 @@ colorMap('brenda')        = [0.00 0.45 0.70]; % blue
 colorMap('median')        = [0.90 0.62 0.00]; % orange
 colorMap('catpred')       = [0.00 0.62 0.45]; % green/teal
 colorMap('custom')        = [0.84 0.37 0.00]; % vermillion
-colorMap('completematch') = [0.80 0.47 0.65]; % purple
+colorMap('exact match') = [0.80 0.47 0.65]; % purple
 colorMap('other')         = [0.60 0.60 0.60]; % grey for merged small classes
 
 % fallback colors for unknown categories (if any appear)

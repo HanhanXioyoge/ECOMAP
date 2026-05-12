@@ -12,18 +12,22 @@ function C13Data = load13CData(filePath, model)
 %       .reactions     - Cell array of reaction names (flux rows only)
 %       .conditions    - Cell array of condition names (Cond1, Cond2, ...)
 %       .fluxes        - Matrix of flux values (nReactions x nConditions)
-%       .metabolites   - Cell array of metabolite IDs for each reaction
-%       .coefficients  - Matrix of stoichiometric coefficients
+%       .directions    - Cell array of direction arrays for each flux reaction
+%       .nCarbon       - User-provided carbon count for flux reactions
 %
-% Data Format (New TSV):
-%   Type       RxnName    ModelMetabolite    Coefficient    Cond1    Cond2    ...
-%   constraint biomass    {biomass}          {-1}           0.08     0.09    ...
-%   constraint EX_glc__D_e {EX_glc__D_e}      {-1}           -10      -12     ...
-%   flux       HEX1       {glc__D_c;atp_c;g6p_c} {1;1;-1}   0.91     1.19    ...
-%   flux       PGI        {g6p_c;f6p_c}      {1;-1}        0.65     0.85    ...
+% Data Format (Simplified TSV):
+%   Type       RxnName              Carbon    Direction    Cond1    Cond2    ...
+%   constraint r_2111                                    0.405    0.150    ...
+%   constraint r_1714                                   -16.731   -1.560   ...
+%   flux       r_0534              6        {1}        16.731    1.560    ...
+%   flux       {r_0658;r_2131}     6        {1;1}       1.008    1.140    ...
+%   flux       {r_0454;r_1021;r_0452}  4     {-1;1;-1}   0.102    0.989    ...
 %
-%   - constraint rows: define model bounds and objectives
-%   - flux rows: define central carbon metabolism fluxes with stoichiometry
+%   - constraint rows: define model bounds and objectives (Direction is ignored)
+%   - flux rows: define central carbon metabolism fluxes
+%     - RxnName: single reaction ID or {r1;r2;r3} for multiple reactions
+%     - Direction: {1} for single, {1;-1;1} for multiple (1=forward, -1=reverse)
+%     - Carbon: carbon atoms in the substrate/product
 
     if nargin < 2
         model = [];
@@ -59,6 +63,8 @@ end
 
 function C13Data = parseNewFormat(data, model)
 % Parse new format with Type column
+%
+% Expected columns: Type, RxnName, Carbon, Direction, Cond1, Cond2, ...
 
     % Find condition columns (Cond1, Cond2, ...)
     varNames = data.Properties.VariableNames;
@@ -68,17 +74,25 @@ function C13Data = parseNewFormat(data, model)
 
     % Initialize output structure
     C13Data.constraints = struct();
-    C13Data.reactions = {};
+    C13Data.reactions = {};      % Cell array of reaction names (single or cell array for grouped)
+    C13Data.types = {};          % Store reaction types ('flux' or 'constraint')
     C13Data.conditions = conditionNames;
     C13Data.fluxes = [];
-    C13Data.metabolites = {};
-    C13Data.coefficients = [];
+    C13Data.directions = {};     % Direction arrays for flux reactions
+    C13Data.nCarbon = [];       % User-provided carbon count for flux reactions
 
     % Get data as arrays
     types = data{:, 'Type'};
     rxnNames = data{:, 'RxnName'};
-    modelMets = data{:, 'ModelMetabolite'};
-    coeffs = data{:, 'Coefficient'};
+    carbonVals = data{:, 'Carbon'};
+
+    % Check if Direction column exists
+    hasDirectionCol = ismember('Direction', varNames);
+    if hasDirectionCol
+        directionVals = data{:, 'Direction'};
+    else
+        directionVals = cell(height(data), 1);
+    end
 
     % Separate constraint and flux rows
     constraintIdx = find(strcmp(types, 'constraint'));
@@ -91,26 +105,6 @@ function C13Data = parseNewFormat(data, model)
     for i = 1:length(constraintIdx)
         idx = constraintIdx(i);
         rxn = rxnNames{idx};
-
-        % Parse ModelMetabolite (e.g., '{biomass}' or '{EX_glc__D_e}')
-        metStr = modelMets{idx};
-        if ischar(metStr)
-            metStr = strtrim(metStr);
-            % Remove curly braces
-            metStr = strrep(metStr, '{', '');
-            metStr = strrep(metStr, '}', '');
-        end
-
-        % Parse Coefficient (e.g., '{-1}')
-        coefStr = coeffs{idx};
-        if ischar(coefStr)
-            coefStr = strtrim(coefStr);
-            coefStr = strrep(coefStr, '{', '');
-            coefStr = strrep(coefStr, '}', '');
-            coefVal = str2double(strsplit(coefStr, ';'));
-        else
-            coefVal = coefStr;
-        end
 
         % Get flux values for each condition
         fluxVals = NaN(1, nCond);
@@ -138,39 +132,38 @@ function C13Data = parseNewFormat(data, model)
             C13Data.constraints.(rxn) = struct('lb', fluxVals, 'ub', zeros(1, nCond) + 1000);
             fprintf('  Constraint: %s, lb: %s\n', rxn, mat2str(fluxVals(~isnan(fluxVals)), 4));
         end
+
+        % Add to main data arrays (for RMSE calculation)
+        C13Data.reactions{end+1} = rxn;
+        C13Data.types{end+1} = 'constraint';
+        C13Data.directions{end+1} = [];  % No direction for constraint
+        C13Data.nCarbon(end+1, 1) = NaN;  % Constraint gets carbon from ecModel.excarbon
+        C13Data.fluxes = [C13Data.fluxes; fluxVals]; %#ok<AGROW>
     end
 
     % --- Parse flux rows ---
-    fluxData = [];
-    metabolitesData = {};
-    coefficientsData = [];
-
     for i = 1:length(fluxIdx)
         idx = fluxIdx(i);
-        rxn = rxnNames{idx};
+        rxnRaw = rxnNames{idx};
 
-        % Parse ModelMetabolite (e.g., '{glc__D_c;atp_c;g6p_c}')
-        metStr = modelMets{idx};
-        if ischar(metStr)
-            metStr = strtrim(metStr);
-            metStr = strrep(metStr, '{', '');
-            metStr = strrep(metStr, '}', '');
-            mets = strsplit(metStr, ';');
-            mets = mets(~cellfun(@isempty, mets));
-        else
-            mets = {metStr};
+        % Parse RxnName: single reaction or {r1;r2;r3}
+        [rxnList, isMulti] = parseReactionName(rxnRaw);
+
+        % Parse Direction: {1} or {1;-1;1}
+        dirStr = '';
+        if hasDirectionCol
+            dirStr = directionVals{idx};
         end
+        dirArray = parseDirections(dirStr, length(rxnList));
 
-        % Parse Coefficient (e.g., '{1;1;-1}')
-        coefStr = coeffs{idx};
-        if ischar(coefStr)
-            coefStr = strtrim(coefStr);
-            coefStr = strrep(coefStr, '{', '');
-            coefStr = strrep(coefStr, '}', '');
-            coefVals = str2double(strsplit(coefStr, ';'));
-            coefVals = coefVals(~isnan(coefVals));
+        % Get user-provided carbon count
+        if iscell(carbonVals)
+            cVal = carbonVals{idx};
+            if ischar(cVal)
+                cVal = str2double(strrep(strrep(cVal, '{', ''), '}', ''));
+            end
         else
-            coefVals = coefStr;
+            cVal = carbonVals(idx);
         end
 
         % Get flux values for each condition
@@ -182,25 +175,47 @@ function C13Data = parseNewFormat(data, model)
             end
         end
 
-        % Store
-        C13Data.reactions{end+1} = rxn;
-        metabolitesData{end+1} = mets;
-        coefficientsData{end+1, 1} = coefVals;
-        fluxData = [fluxData; fluxVals]; %#ok<AGROW>
-    end
+        % Store in main data arrays
+        C13Data.reactions{end+1} = rxnList;  % Cell array of reaction names
+        C13Data.types{end+1} = 'flux';
+        C13Data.directions{end+1} = dirArray;  % Direction array
+        C13Data.nCarbon(end+1, 1) = cVal;  % User-provided carbon count
+        C13Data.fluxes = [C13Data.fluxes; fluxVals]; %#ok<AGROW>
 
-    C13Data.fluxes = fluxData;
-    C13Data.metabolites = metabolitesData;
-    C13Data.coefficients = coefficientsData;
+        % Print info for multi-reaction fluxes
+        if isMulti
+            dirParts = arrayfun(@(x) sprintf('%.0f', x), dirArray, 'UniformOutput', false);
+            fprintf('  Flux: {%s} x %d carbons, directions: {%s}\n', ...
+                strjoin(rxnList, ';'), cVal, strjoin(dirParts, ';'));
+        end
+    end
 
     % Print sample flux reactions
     fprintf('[load13CData] Sample flux reactions:\n');
-    for i = 1:min(5, length(C13Data.reactions))
-        mets = C13Data.metabolites{i};
-        coefs = C13Data.coefficients{i};
-        fprintf('  %s: %s (%s)\n', C13Data.reactions{i}, ...
-            strjoin(mets(1:min(3, end)), ','), ...
-            mat2str(coefs(1:min(3, end)), 2));
+    count = 0;
+    for i = 1:length(C13Data.reactions)
+        if strcmp(C13Data.types{i}, 'flux')
+            rxn = C13Data.reactions{i};
+            nC = C13Data.nCarbon(i);
+            dirs = C13Data.directions{i};
+            if iscell(rxn)
+                rxnStr = ['{', strjoin(rxn, ';'), '}'];
+            else
+                rxnStr = rxn;
+            end
+            % Format directions properly
+            if isempty(dirs)
+                dirStr = '{}';
+            else
+                dirParts = arrayfun(@(x) sprintf('%.0f', x), dirs, 'UniformOutput', false);
+                dirStr = ['{', strjoin(dirParts, ';'), '}'];
+            end
+            fprintf('  %s: C=%d, dir=%s\n', rxnStr, nC, dirStr);
+            count = count + 1;
+            if count >= 5
+                break;
+            end
+        end
     end
 
     % Match reactions to model if provided
@@ -209,10 +224,86 @@ function C13Data = parseNewFormat(data, model)
     end
 end
 
+%% ------------------- Helper Functions -------------------
+
+function [rxnList, isMulti] = parseReactionName(rxnRaw)
+% Parse reaction name that can be:
+%   - Single: 'r_0534'
+%   - Multiple: '{r_0658;r_2131}'
+
+    rxnRaw = strtrim(rxnRaw);
+    if startsWith(rxnRaw, '{')
+        % Multi-reaction format: {r1;r2;r3}
+        rxnRaw = strrep(rxnRaw, '{', '');
+        rxnRaw = strrep(rxnRaw, '}', '');
+        rxnList = strsplit(rxnRaw, ';');
+        rxnList = rxnList(~cellfun(@isempty, rxnList));
+        rxnList = strtrim(rxnList);
+        isMulti = true;
+    else
+        % Single reaction
+        rxnList = {rxnRaw};
+        isMulti = false;
+    end
+end
+
+function dirArray = parseDirections(dirStr, nExpected)
+% Parse direction string that can be:
+%   - Empty: '' (for single reaction, default to 1)
+%   - Single: '{1}' or '{-1}' (expand to nExpected if multi)
+%   - Multiple: '{1;-1;1}'
+
+    dirArray = ones(1, nExpected);  % Default to forward
+
+    % Handle cell array input
+    if iscell(dirStr)
+        if isempty(dirStr)
+            return;
+        end
+        dirStr = dirStr{1};
+        if iscell(dirStr)
+            return;  % Still cell, use default
+        end
+    end
+
+    % Handle empty char
+    if ~ischar(dirStr)
+        return;  % Not a string, use default
+    end
+
+    dirStr = strtrim(dirStr);
+    if isempty(dirStr)
+        return;
+    end
+    if startsWith(dirStr, '{')
+        dirStr = strrep(dirStr, '{', '');
+        dirStr = strrep(dirStr, '}', '');
+        parts = strsplit(dirStr, ';');
+        parts = parts(~cellfun(@isempty, parts));
+        dirVals = str2double(parts);
+
+        if length(dirVals) == 1 && nExpected > 1
+            % Single direction for multi-reaction, apply to all
+            dirArray(:) = dirVals;
+        else
+            % Match length
+            nUse = min(length(dirVals), nExpected);
+            dirArray(1:nUse) = dirVals(1:nUse);
+        end
+    else
+        % Plain number
+        val = str2double(dirStr);
+        if ~isnan(val)
+            dirArray(:) = val;
+        end
+    end
+end
+
 %% ------------------- Model Matching -------------------
 
 function C13Data = matchReactionsToModel(C13Data, model)
 % Match experimental reactions to model reactions
+% For multi-reaction fluxes, this just stores the names
 
     if isfield(model, 'rxns')
         modelRxns = model.rxns;
@@ -221,21 +312,50 @@ function C13Data = matchReactionsToModel(C13Data, model)
         return;
     end
 
-    % Match each reaction
-    matchedIdx = zeros(length(C13Data.reactions), 1);
-    for i = 1:length(C13Data.reactions)
-        expRxn = C13Data.reactions{i};
-        idx = find(strcmp(modelRxns, expRxn));
-        if ~isempty(idx)
-            matchedIdx(i) = idx(1);
+    % For each reaction, store the reaction list
+    % (Actual matching is done in buildC13ReactionMap)
+    nRxns = length(C13Data.reactions);
+    matchedCount = 0;
+    unmatchedReactions = {};
+
+    for i = 1:nRxns
+        rxn = C13Data.reactions{i};
+
+        if strcmp(C13Data.types{i}, 'flux')
+            % For flux, check if reactions exist in model
+            if iscell(rxn)
+                % Multi-reaction
+                allFound = true;
+                for j = 1:length(rxn)
+                    if isempty(find(strcmp(modelRxns, rxn{j}), 1))
+                        allFound = false;
+                        break;
+                    end
+                end
+                if allFound
+                    matchedCount = matchedCount + 1;
+                else
+                    unmatchedReactions{end+1} = ['{', strjoin(rxn, ';'), '}']; %#ok<AGROW>
+                end
+            else
+                % Single reaction
+                if ~isempty(find(strcmp(modelRxns, rxn), 1))
+                    matchedCount = matchedCount + 1;
+                else
+                    unmatchedReactions{end+1} = rxn; %#ok<AGROW>
+                end
+            end
         end
     end
 
-    nMatched = sum(matchedIdx > 0);
-    fprintf('[load13CData] Matched %d/%d reactions to model\n', nMatched, length(C13Data.reactions));
+    fprintf('[load13CData] Matched %d/%d flux reactions to model\n', matchedCount, sum(strcmp(C13Data.types, 'flux')));
+    if ~isempty(unmatchedReactions)
+        fprintf('[load13CData] Unmatched reactions (first 10):\n');
+        for i = 1:min(10, length(unmatchedReactions))
+            fprintf('  - %s\n', unmatchedReactions{i});
+        end
+    end
 
-    % Store matching info
-    C13Data.matchedIdx = matchedIdx;
     C13Data.modelRxns = modelRxns;
 end
 
@@ -280,4 +400,6 @@ function C13Data = parseOldFormat(data)
 
     % Empty constraints for old format
     C13Data.constraints = struct();
+    C13Data.directions = {};
+    C13Data.nCarbon = [];
 end

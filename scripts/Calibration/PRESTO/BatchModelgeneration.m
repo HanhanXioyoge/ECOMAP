@@ -12,7 +12,9 @@ function models = BatchModelgeneration(model, P, nutrExch)
         m = model;
         % set all bounds with available information
         lbVals  = nutrExch{:, i};
+        ubVals  = ones(size(lbVals)) * 1000;  % upper bound = 1000
         m = setParam(m, 'lb', excRxns, lbVals);
+        m = setParam(m, 'ub', excRxns, ubVals);
         models{i} = m;
     end
 end

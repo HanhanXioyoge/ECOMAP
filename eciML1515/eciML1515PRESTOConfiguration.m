@@ -10,12 +10,12 @@ orgName = 'Escherichia coli';
 %Model basename used
 orgBasename = 'eciML1515';
 % Growth-associated maintenance (GAM); set to NaN if it should be fitted
-GAM = repelem(75.5522,31);
+GAM = NaN;
 % mass fraction of all proteins included in the model (see GECKO documentation)
-f = 0.52102;
+f = 0.53527;
 % mass fraction of unmeasured proteins according to PAX DB (also discounting
 % proteins that do not have a measured abundance across all conditions)
-f_n = NaN;
+f_n = ;
 % average in vitro enzyme saturation (fitted in GECKO)
 sigma = 0.5;
 % correction factor for protein abudances
@@ -30,7 +30,7 @@ enzMetPfx = 'prot_';
 enzRxnPfx = 'prot_';
 % Specify whether the approach should be run parallelized
 runParallel = true;
-ncpu = 8;
+ncpu = 16;
 % set the number of iterations of k-fold cross-validation
 nIter = 50;
 
@@ -53,4 +53,3 @@ end
 maxKcatFile = fullfile(findECOMAProot, 'scripts', 'database', 'max_KCAT.txt');
 K = retrieveMaxKcat(maxKcatFile,orgName);
 clear maxKcatFile
-

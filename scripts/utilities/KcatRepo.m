@@ -154,6 +154,70 @@ classdef KcatRepo < handle
             end
         end
 
+        function [model, appliedName] = applyToModel(obj, baseModel, groupName)
+            % APPLYTOMODEL
+            %   Apply kcat set(s) and sluice parameters to a model.
+            %
+            %   INPUT
+            %   baseModel  : model with sluice structure (from applySluiceStructure)
+            %   groupName  : (optional) specific group name to apply, or 'all'
+            %                If not specified or 'all', applies all groups.
+            %
+            %   OUTPUT
+            %   model      : if groupName specified -> model with that group applied
+            %               if groupName='all' -> struct with each group applied
+            %   appliedName: name of the applied group(s)
+            %
+            %   Usage:
+            %     repo = KcatRepo.loadMat('eciML1515_kcatRepo.mat');
+            %
+            %     % Apply specific group
+            %     model = repo.applyToModel(baseModel, 'Bayes_FullData');
+            %
+            %     % Apply all groups (returns struct)
+            %     models = repo.applyToModel(baseModel, 'all');
+            %     model = models.Bayes_FullData;  % access by group name
+            %
+            %     % List available groups
+            %     repo.listGroups();
+
+            if nargin < 3 || isempty(groupName) || strcmpi(groupName, 'all')
+                % Apply ALL groups
+                if isempty(obj.groups)
+                    error('KcatRepo:applyToModel', 'No groups found in repository.');
+                end
+
+                groupNames = string({obj.groups.name});
+                fprintf('[KcatRepo] Available groups:\n');
+                for i = 1:numel(groupNames)
+                    fprintf('  [%d] %s\n', i, groupNames(i));
+                end
+                fprintf('\n');
+
+                % Apply each group and return as struct
+                model = struct();
+                appliedName = groupNames;
+                for i = 1:numel(groupNames)
+                    gName = groupNames(i);
+                    fprintf('[KcatRepo] Applying group: %s\n', gName);
+                    model.(genvarname(gName)) = obj.applyGroupToModel(gName, baseModel);
+                end
+                fprintf('[KcatRepo] Applied %d groups.\n', numel(groupNames));
+            else
+                % Apply specific group
+                groupName = string(groupName);
+                idx = find(strcmp(string({obj.groups.name}), groupName), 1);
+                if isempty(idx)
+                    error('KcatRepo:applyToModel', ...
+                        'Group "%s" not found. Use listGroups() to see available groups.', groupName);
+                end
+                fprintf('[KcatRepo] Applying group: %s\n', groupName);
+                model = obj.applyGroupToModel(groupName, baseModel);
+                appliedName = groupName;
+                fprintf('[KcatRepo] Done.\n');
+            end
+        end
+
         function names = listGroups(obj)
             % LISTGROUPS
             if isempty(obj.groups)

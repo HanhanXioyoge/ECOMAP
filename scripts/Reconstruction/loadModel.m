@@ -107,6 +107,77 @@ function model = loadModel(filename, modeltype, modelDir, parameters)
     model.geneMiriams = ensureMiriamCell(model, 'geneMiriams', numel(model.genes));
 
     model.metNames = regexprep(model.metNames, '\s+(?:\(?[A-Z][a-z]?\d*\)?){2,}(?:[+-]\d*)?$', '');
+
+    % ---- Standardize metabolite names for GECKO models ----
+    % Remove compartment suffix like [c], [e], [p] from metabolite names
+    model.mets = standardizeMetNames(model.mets, char(modeltype));
+
+    % ---- Standardize reaction names for ECMPY and GECKO models ----
+    model.rxns = standardizeRxnNames(model.rxns, char(modeltype));
+end
+
+function metNames = standardizeMetNames(metNames, modeltype)
+% STANDARDIZEMETNAMES Remove compartment suffix like [c], [e], [p] from metabolite names.
+
+    if strcmp(modeltype, 'GECKO')
+        % Remove [x] suffix where x is a single letter (c, e, p, etc.)
+        metNames = regexprep(metNames, '\[[a-z]\]$', '');
+    end
+end
+
+function rxnNames = standardizeRxnNames(rxnNames, modeltype)
+% STANDARDIZERNXNNAMES Standardize reaction names for ECMPY and GECKO models.
+
+    if strcmp(modeltype, 'ECMPY')
+        % Handle multiple patterns:
+        % _reverse_num2 -> _REV_EXP_2
+        % _num2 -> _EXP_2
+        % _reverse -> _REV
+        rxnNames = regexprep(rxnNames, '_reverse_num(\d+)$', '_REV_EXP_$1');
+        rxnNames = regexprep(rxnNames, '_num(\d+)$', '_EXP_$1');
+        rxnNames = regexprep(rxnNames, '_reverse$', '_REV');
+
+    elseif strcmp(modeltype, 'GECKO')
+        % No2 -> _EXP_2, No3 -> _EXP_3 (all reactions ending with No, not _REV)
+        hasNo = ~cellfun(@isempty, regexp(rxnNames, 'No\d+$'));
+        hasREV = endsWith(rxnNames, '_REV');
+
+        idx = hasNo & ~hasREV;
+        rxnNames(idx) = regexprep(rxnNames(idx), 'No(\d+)$', '_EXP_$1');
+    end
+
+    % ---- Cleanup orphan _EXP_N suffixes ----
+    % If A_EXP_1 exists but A_EXP_2, A_EXP_3, etc. do not exist, remove _EXP_1
+    rxnNames = cleanupOrphanExpSuffix(rxnNames);
+end
+
+function rxnNames = cleanupOrphanExpSuffix(rxnNames)
+% Remove _EXP_1 when it's the only suffix for that base reaction.
+
+    tokenData = regexp(rxnNames, '^(.+)_EXP_(\d+)$', 'tokens');
+    expIdx = find(~cellfun(@isempty, tokenData));
+
+    if isempty(expIdx)
+        return;
+    end
+
+    baseCounts = containers.Map();
+    for i = expIdx'
+        baseName = tokenData{i}{1}{1};
+        if isKey(baseCounts, baseName)
+            baseCounts(baseName) = baseCounts(baseName) + 1;
+        else
+            baseCounts(baseName) = 1;
+        end
+    end
+
+    for i = expIdx'
+        baseName = tokenData{i}{1}{1};
+        expNum = str2double(tokenData{i}{1}{2});
+        if expNum == 1 && baseCounts(baseName) == 1
+            rxnNames{i} = baseName;
+        end
+    end
 end
 
 function C = ensureMiriamCell(model, fieldName, N)

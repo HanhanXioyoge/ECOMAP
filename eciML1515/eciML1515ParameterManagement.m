@@ -45,7 +45,7 @@ function obj = eciML1515ParameterManagement()
     % Specify whether the approach should be run parallelized
 
     obj.params.PRESTO.runParallel = true;
-    obj.params.PRESTO.ncpu = 16;
+    obj.params.PRESTO.ncpu = 8;
     obj.params.PRESTO.nIter = 50;                               % set the number of iterations of k-fold cross-validation
     % correction parameters
     obj.params.PRESTO.epsilon = 1e5;

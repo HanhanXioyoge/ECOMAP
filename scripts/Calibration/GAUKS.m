@@ -1,4 +1,4 @@
-function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, AnaerobicModel, parameters)
+function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, GEM, bioRxn_GEM, AnaerobicModel, parameters)
 % GAUKS: Global Aerobic/Anaerobic Uptake Kinetic Calibration
 % This function calibrates enzyme-constrained models by setting Umin values
 % for pre-structured exchange reactions (from applySluiceStructure).
@@ -20,14 +20,16 @@ function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, Anaer
 %       applied to the same structured model.
 
 %% 1. Initialization and Parameter Setup
-    if nargin < 3 || isempty(parameters), parameters = ParameterManager.getParams(); end
-    if nargin < 2 || isempty(AnaerobicModel), AnaerobicModel = false; end
+    if nargin < 5 || isempty(parameters), parameters = ParameterManager.getParams(); end
+    if nargin < 4 || isempty(AnaerobicModel), AnaerobicModel = false; end
+    if nargin < 3 || isempty(bioRxn_GEM), bioRxn_GEM = parameters.bioRxn; end
 
     bioRxn      = parameters.bioRxn;
     basePath    = parameters.dataDir;
     prot_pool   = 'prot_pool';
     c_source    = parameters.c_source;
     org_name    = parameters.org_name;
+    GEM         = setParam(GEM, 'eq', c_source, 0);
 
     % Load experimental data
     T = readtable(fullfile(basePath, 'UnconstrainedMaxGrowth.tsv'), 'FileType','text','ReadRowNames',true);
@@ -56,7 +58,7 @@ function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, Anaer
         ecModel_anaerobic = initial_anaerobic;
     end
 
-    %% Pre-check: Verify all conditions have valid solutions
+    %% Pre-check: Verify all conditions for feasibility
     fprintf('[GAUKS] Pre-checking all conditions for feasibility...\n');
     failedConditions = {};
 
@@ -84,13 +86,17 @@ function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, Anaer
         end
     end
 
-    % If any failed, throw error
+    % Create a set of failed conditions for quick lookup
+    failedSet = {};
     if ~isempty(failedConditions)
-        error('GAUKS:InfeasibleConditions', ...
-            'The following conditions are infeasible:\n%s\n', ...
-            strjoin(failedConditions, '\n'));
+        fprintf('[GAUKS] Warning: %d conditions are infeasible, will be skipped:\n', numel(failedConditions));
+        for i = 1:numel(failedConditions)
+            fprintf('  - %s\n', failedConditions{i});
+            failedSet{end+1} = failedConditions{i}; %#ok<AGROW>
+        end
+    else
+        fprintf('[GAUKS] All conditions are feasible. Proceeding...\n');
     end
-    fprintf('[GAUKS] All conditions are feasible. Proceeding...\n');
 
     %% 2. Phase 1: Probing Umin (Structure already applied!)
     % Note: Structure is assumed to be pre-applied via applySluiceStructure()
@@ -100,38 +106,55 @@ function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, Anaer
         % --- Aerobic Branch ---
         idxAeroRows = find(strcmp(Oxavail, 'aerobic') & strcmp(exchange_reactions, ex_rxn));
         if ~isempty(idxAeroRows)
-            fprintf('[GAUKS] Probing Umin: %s (Aerobic)\n', ex_rxn);
             currentMu = max(TargetMu(idxAeroRows));
-            umin_aero = probeUmin(ecModel, ex_rxn, currentMu, 'aerobic', bioRxn, ex_o2);
-            % Record Umin
-            summaryTbl.Umin(idxAeroRows) = umin_aero;
-            % Apply Umin to the pre-structured model
-            ecModel_aerobic = setUmin(ecModel_aerobic, ex_rxn, umin_aero, prot_pool);
+            % Check if this condition is in the failed set
+            condKey = sprintf('%s (aerobic, Mu=%.4f)', ex_rxn, currentMu);
+            if ismember(condKey, failedSet)
+                fprintf('[GAUKS] Skipping infeasible condition: %s\n', condKey);
+                summaryTbl.Umin(idxAeroRows) = NaN;
+                summaryTbl.ProteomicCost(idxAeroRows) = NaN;
+                summaryTbl.Error_Percent(idxAeroRows) = NaN;
+            else
+                fprintf('[GAUKS] Probing Umin: %s (Aerobic)\n', ex_rxn);
+                umin_aero = probeUmin(ecModel, GEM, ex_rxn, currentMu, 'aerobic', bioRxn_GEM, ex_o2);
+                % Record Umin
+                summaryTbl.Umin(idxAeroRows) = umin_aero;
+                % Apply Umin to the pre-structured model
+                ecModel_aerobic = setUmin(ecModel_aerobic, ex_rxn, umin_aero, prot_pool);
+            end
         end
 
         % --- Anaerobic Branch ---
         if AnaerobicModel
             idxAnaRows = find(strcmp(Oxavail, 'anaerobic') & strcmp(exchange_reactions, ex_rxn));
             if ~isempty(idxAnaRows)
-                fprintf('[GAUKS] Probing Umin: %s (Anaerobic)\n', ex_rxn);
                 mu_anaero = max(TargetMu(idxAnaRows));
-                umin_ana = probeUmin(initial_anaerobic, ex_rxn, mu_anaero, 'anaerobic', bioRxn, ex_o2);
-                summaryTbl.Umin(idxAnaRows) = umin_ana;
-                % Apply Umin to the pre-structured model
-                ecModel_anaerobic = setUmin(ecModel_anaerobic, ex_rxn, umin_ana, prot_pool);
+                condKey = sprintf('%s (anaerobic, Mu=%.4f)', ex_rxn, mu_anaero);
+                if ismember(condKey, failedSet)
+                    fprintf('[GAUKS] Skipping infeasible condition: %s\n', condKey);
+                    summaryTbl.Umin(idxAnaRows) = NaN;
+                    summaryTbl.ProteomicCost(idxAnaRows) = NaN;
+                    summaryTbl.Error_Percent(idxAnaRows) = NaN;
+                else
+                    fprintf('[GAUKS] Probing Umin: %s (Anaerobic)\n', ex_rxn);
+                    umin_ana = probeUmin(initial_anaerobic, ex_rxn, mu_anaero, 'anaerobic', bioRxn, ex_o2);
+                    summaryTbl.Umin(idxAnaRows) = umin_ana;
+                    % Apply Umin to the pre-structured model
+                    ecModel_anaerobic = setUmin(ecModel_anaerobic, ex_rxn, umin_ana, prot_pool);
+                end
             end
         end
     end
 
     %% 3. Phase 3: Bisection Calibration
     fprintf('[GAUKS] Starting Bisection Calibration...\n');
-    
+
     % Calibrate Aerobic Model and update Summary Table
-    [ecModel_aerobic, summaryTbl] = calibrateModelMode(ecModel_aerobic, summaryTbl, 'aerobic', bioRxn);
-    
+    [ecModel_aerobic, summaryTbl] = calibrateModelMode(ecModel_aerobic, summaryTbl, 'aerobic', bioRxn, failedSet);
+
     % Calibrate Anaerobic Model and update Summary Table
     if AnaerobicModel
-        [ecModel_anaerobic, summaryTbl] = calibrateModelMode(ecModel_anaerobic, summaryTbl, 'anaerobic', bioRxn);
+        [ecModel_anaerobic, summaryTbl] = calibrateModelMode(ecModel_anaerobic, summaryTbl, 'anaerobic', bioRxn, failedSet);
     end
 
     fprintf('[GAUKS] Calibration Complete.\n');
@@ -169,58 +192,67 @@ function feasible = checkFeasibility(model, ex_rxn, targetMu, mode, bioRxn, ex_o
     feasible = ~isempty(sol.x) && sol.stat == 1;
 end
 
-function umin = probeUmin(model, ex_rxn, targetMu, mode, bioRxn, ex_o2)
-    % Enforce O2 constraints for anaerobic probing
-    if strcmp(mode, 'anaerobic'), model.lb(strcmp(model.rxns, ex_o2)) = 0; end
+function umin = probeUmin(model, GEM, ex_rxn, targetMu, mode, bioRxn_GEM, ex_o2)
+    % ---------------------------------------------------------------------
+    % GAUKS Module: Absolute Stoichiometric Minimum Probing
+    % Calculates U_min strictly using the unconstrained base GEM to anchor 
+    % the thermodynamic boundary, bypassing all kinetic parameter biases.
+    % ---------------------------------------------------------------------
 
-    % Fix growth rate with high precision
-    idxBio = strcmp(model.rxns, bioRxn);
-    model.lb(idxBio) = targetMu * 0.999;
-    model.ub(idxBio) = targetMu * 1.001;
-
-    % Step 1: Minimize substrate absorption (Maximize exchange flux)
-    model.c(:) = 0;
-    model.lb(strcmp(model.rxns, ex_rxn)) = -1000;
-
-    model.c(strcmp(model.rxns, ex_rxn)) = 1;
-    sol1 = solveLP(model);
-    
-    % Relax protein pool if metabolic constraints prevent reaching TargetMu
-    if isempty(sol1.x) || sol1.stat ~= 1
-        pIdx = strcmp(model.rxns, 'prot_pool_exchange');
-        if any(pIdx), model.lb(pIdx) = -1000; model.ub(pIdx) = 1000; end
-        sol1 = solveLP(model);
+    % Enforce O2 constraints for anaerobic probing on the base GEM
+    if strcmp(mode, 'anaerobic')
+        GEM.lb(strcmp(GEM.rxns, ex_o2)) = 0; 
     end
-
-    if isempty(sol1.x) || sol1.stat ~= 1, umin = 1e-5; return; end
-    umin_raw = abs(sol1.x(strcmp(model.rxns, ex_rxn)));
-
-    % Step 2: Minimize protein usage at Step 1's uptake rate
-    idxEx = strcmp(model.rxns, ex_rxn);
-    model.lb(idxEx) = -umin_raw * 1.001;
-    model.ub(idxEx) = -umin_raw * 0.999;
-    model.c(:) = 0;
-    pIdx = strcmp(model.rxns, 'prot_pool_exchange');
-    if any(pIdx), model.c(pIdx) = 1; else, error('Missing protein pool exchange.'); end
-
-    sol2 = solveLP(model);
-    if ~isempty(sol2.x) && sol2.stat == 1, umin = abs(sol2.x(idxEx)); else, umin = umin_raw; end
+    
+    % Fix growth rate with high precision in the base GEM
+    bioRxn_GEM = strcmp(GEM.rxns, bioRxn_GEM);
+    GEM.lb(bioRxn_GEM) = targetMu * 0.999;
+    GEM.ub(bioRxn_GEM) = targetMu * 1.001;
+    
+    % Minimize substrate absorption (Maximize exchange flux)
+    GEM.c(:) = 0;
+    idxEx = strcmp(GEM.rxns, ex_rxn);
+    GEM.lb(idxEx) = -1000; % Ensure boundary is fully open for probing
+    GEM.c(idxEx) = 1;      % Maximize the negative flux (Minimize uptake)
+    
+    % Standard LP solve using the base GEM
+    sol1 = solveLP(GEM);
+    
+    % Safety check: If the base GEM itself cannot reach TargetMu
+    if isempty(sol1.x) || sol1.stat ~= 1
+        fprintf('[GAUKS Warning] Base GEM cannot achieve TargetMu = %.4f.\n', targetMu);
+        umin = 1e-5; 
+        return; 
+    end
+    
+    % Extract the absolute stoichiometric minimum uptake
+    umin = abs(sol1.x(idxEx));
+    
+    % Note: The ecModel ('model') is passed for interface compatibility 
+    % but kept pristine. No protein pool relaxation is needed anymore!
 end
 
 %% --- Helper 2: Calibration Loop ---
-function [model, T] = calibrateModelMode(model, T, mode, bioRxn)
+function [model, T] = calibrateModelMode(model, T, mode, bioRxn, failedSet)
     idxMode = find(strcmp(T{:,11}, mode)); % Using column 'Condition' (assume 11th col)
     relevantEx = unique(T{:,1}(idxMode));
-    
+
     for i = 1:numel(relevantEx)
         ex_rxn = relevantEx{i};
         idxRows = idxMode(strcmp(T{:,1}(idxMode), ex_rxn));
         targetMu = max(T{:,3}(idxRows));
-        
+
+        % Check if this condition is in the failed set
+        condKey = sprintf('%s (%s, Mu=%.4f)', ex_rxn, mode, targetMu);
+        if ismember(condKey, failedSet)
+            fprintf('[GAUKS] Skipping calibration for infeasible condition: %s\n', condKey);
+            continue;
+        end
+
         fprintf('[GAUKS] Calibrating %s for %s mode (TargetMu: %.3f)...\n', ex_rxn, mode, targetMu);
-        
+
         [model, bestXi, finalMu] = bisectionXi(model, ex_rxn, targetMu, bioRxn);
-        
+
         % Populate Summary Table
         T.ProteomicCost(idxRows) = bestXi;
         T.Error_Percent(idxRows) = abs(finalMu - targetMu) / targetMu * 100;
@@ -231,7 +263,7 @@ end
 function [model, xi, predictedMu] = bisectionXi(model, ex_rxn, targetMu, bioRxn)
     % BISECTIONXI: Bisection method to calibrate xi (proteomic cost)
     %   xi is the coefficient of prot_pool in the extended branch
-    tol = 1e-4; maxIter = 100; low = 0; high = 10;
+    tol = 1e-4; maxIter = 100; low = 0; high = 1000;
     extIdx  = find(strcmp(model.rxns, [ex_rxn '_extended']));
     protRow = find(strcmp(model.mets, 'prot_pool'));
     bioIdx  = strcmp(model.rxns, bioRxn);
@@ -261,9 +293,9 @@ function [model, xi, predictedMu] = bisectionXi(model, ex_rxn, targetMu, bioRxn)
         end
 
         if predictedMu < targetMu
-            low = xi; 
-        else
             high = xi; 
+        else
+            low = xi; 
         end
     end
 

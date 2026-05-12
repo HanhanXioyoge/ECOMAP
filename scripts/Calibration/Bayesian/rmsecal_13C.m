@@ -1,16 +1,18 @@
-function [rmse, expFlux, simFlux, matchResult] = rmsecal_13C(ecModel, C13Data, conditionIdx, bioRxn, cSource, varargin)
+function [rmse, expFlux, simFlux, matchResult] = rmsecal_13C(ecModel, C13Data, conditionIdx, bioRxn, cSource, C13ReactionMap, varargin)
 % rmsecal_13C
 %   Calculates RMSE between experimental and simulated 13C flux data.
+%   Handles all three ecModel types: basic, isozyme, integrated.
+%   Uses pre-built reaction mapping for efficiency.
 %
 % Input:
-%   ecModel      - Enzyme-constrained model
-%   C13Data     - 13C flux data (from load13CData)
-%   conditionIdx - Which condition to evaluate (index or name)
-%   bioRxn      - Biomass reaction ID
-%   cSource     - Carbon source exchange reaction ID
-%   varargin    - Optional:
-%       'useCarbonFlux' - Use carbon-weighted flux (default: true)
-%       'normalize'     - Normalize by substrate uptake (default: true)
+%   ecModel        - Enzyme-constrained model
+%   C13Data        - 13C flux data (from load13CData)
+%   conditionIdx   - Which condition to evaluate (index or name)
+%   bioRxn         - Biomass reaction ID
+%   cSource        - Carbon source exchange reaction ID
+%   C13ReactionMap - Pre-built reaction mapping from buildC13ReactionMap
+%   varargin       - Optional:
+%       'verbose' - Print diagnostic messages (default: false)
 %
 % Output:
 %   rmse        - RMSE value
@@ -19,11 +21,9 @@ function [rmse, expFlux, simFlux, matchResult] = rmsecal_13C(ecModel, C13Data, c
 %   matchResult - Reaction matching result
 
     p = inputParser;
-    addOptional(p, 'useCarbonFlux', true);
-    addOptional(p, 'normalize', true);
+    addOptional(p, 'verbose', false);
     parse(p, varargin{:});
-    useCarbonFlux = p.Results.useCarbonFlux;
-    normalize = p.Results.normalize;
+    verbose = p.Results.verbose;
 
     % Parse condition
     if isnumeric(conditionIdx)
@@ -35,124 +35,165 @@ function [rmse, expFlux, simFlux, matchResult] = rmsecal_13C(ecModel, C13Data, c
         end
     end
 
+    % --- Validate that C13ReactionMap is provided ---
+    if isempty(C13ReactionMap)
+        error('C13ReactionMap is required. Build it using buildC13ReactionMap.');
+    end
+
     % --- Step 1: Apply model constraints for this condition ---
     modelCond = applyConstraints(ecModel, C13Data, condIdx, bioRxn, cSource);
 
     % --- Step 2: Get experimental fluxes for this condition ---
     expFluxes = C13Data.fluxes(:, condIdx);
     validIdx = ~isnan(expFluxes);
-    expReactions = C13Data.reactions(validIdx);
-    expFlux = expFluxes(validIdx);
 
-    fprintf('[rmsecal_13C] Condition %d: %d reactions\n', condIdx, length(expReactions));
-
-    % --- Step 3: Match reactions to model ---
-    % Use pre-computed matching if available
-    if isfield(C13Data, 'matchedIdx')
-        matchedModelIdx = C13Data.matchedIdx(validIdx);
-        matchedModelIdx = matchedModelIdx(matchedModelIdx > 0);
-    else
-        % Fallback: match by name
-        matchResult_temp = matchReactions(expReactions, modelCond, 'method', 'exact');
-        matchedModelIdx = matchResult_temp.matchedIdx(~isnan(matchResult_temp.matchedIdx));
+    % Filter C13ReactionMap to valid indices
+    nRxns = length(C13ReactionMap.reactions);
+    validMask = validIdx(:)';  % Ensure row vector
+    if length(validMask) < nRxns
+        validMask(nRxns) = false;
     end
 
-    if isempty(matchedModelIdx)
-        warning('No reactions matched between experiment and model');
+    if verbose
+        fprintf('[rmsecal_13C] Condition %d: %d flux reactions\n', condIdx, sum(validMask));
+    end
+
+    % --- Step 3: Check if there are valid reactions to process ---
+    nValidRxns = sum(validMask);
+    if nValidRxns == 0
+        warning('[rmsecal_13C] No valid 13C reactions for this condition');
         rmse = NaN;
+        expFlux = [];
         simFlux = [];
         matchResult = struct();
         return;
     end
 
-    % --- Step 4: Run FBA ---
+    % Get model type
+    ecModelType = [];
+    if isfield(ecModel, 'enzymeConstraints') && isfield(ecModel.enzymeConstraints, 'ecModeltype')
+        ecModelType = ecModel.enzymeConstraints.ecModeltype;
+    end
+    isBasicModel = strcmp(ecModelType, 'basic');
+
+    % Count matched reactions
+    matchedMask = validMask;
+    for i = 1:length(C13ReactionMap.modelIndices)
+        if validMask(i) && isempty(C13ReactionMap.modelIndices{i})
+            matchedMask(i) = false;
+        end
+    end
+    nMatched = sum(matchedMask);
+
+    if verbose
+        fprintf('[rmsecal_13C] Condition %d: %d valid, %d matched\n', condIdx, nValidRxns, nMatched);
+    end
+
+    if nMatched == 0
+        warning('[rmsecal_13C] No reactions matched between experiment and model');
+        rmse = NaN;
+        expFlux = [];
+        simFlux = [];
+        matchResult = struct();
+        return;
+    end
+
+    % --- Step 4: Run FBA with pFBA ---
+    % Find protein pool exchange reaction
+    prot_idx = find(strcmp(modelCond.rxns, 'prot_pool_exchange'));
+
     modelCond.c(:) = 0;
     objIdx = find(strcmp(modelCond.rxns, bioRxn));
     if isempty(objIdx)
         objIdx = find(strcmp(modelCond.rxnNames, 'biomass'));
     end
     if isempty(objIdx)
-        warning('Biomass reaction not found');
+        warning('[rmsecal_13C] Biomass reaction not found');
         rmse = 999;
+        expFlux = [];
         simFlux = [];
         matchResult = struct();
         return;
     end
-    modelCond.c(objIdx) = 1;
 
+    % First FBA: maximize biomass
+    modelCond.c(objIdx) = 1;
     sol = solveLP(modelCond);
 
     if isempty(sol.x) || sol.stat ~= 1
-        warning('FBA solution failed');
+        % Silent fail - just return high RMSE for this condition
         rmse = 999;
-        simFlux = NaN(length(matchedModelIdx), 1);
+        expFlux = [];
+        simFlux = [];
+        matchResult = struct();
         return;
     end
+    
+    % pFBA: fix biomass at 99% of optimum, minimize protein usage
+    if ~isempty(prot_idx)
+        modelCond.lb(objIdx) = sol.f * 0.99;
+        modelCond.c(:) = 0;
+        modelCond.c(prot_idx) = 1;  % Minimize protein pool
+        sol = solveLP(modelCond);
 
-    % --- Step 5: Extract simulated fluxes and calculate RMSE ---
-    % Get the experimental data for matched reactions
-    matchedExpFlux = expFlux(validIdx);
-    matchedMets = C13Data.metabolites(validIdx);
-    matchedCoefs = C13Data.coefficients(validIdx);
-
-    % Calculate net carbon flux RMSE
-    expCarbonFlux = zeros(length(matchedExpFlux), 1);
-    simCarbonFlux = zeros(length(matchedExpFlux), 1);
-
-    for i = 1:length(matchedExpFlux)
-        % Get reaction stoichiometry
-        mets = matchedMets{i};
-        coefs = matchedCoefs{i};
-
-        % Calculate total carbon for reactants and products
-        reactantC = 0;
-        productC = 0;
-
-        for j = 1:length(mets)
-            metId = mets{j};
-            coef = coefs(j);
-
-            % Find carbon number for this metabolite
-            metIdx = find(strcmp(modelCond.mets, metId));
-            if ~isempty(metIdx)
-                formula = modelCond.metFormulas{metIdx};
-                cNum = extractCarbonFromFormula(formula);
-            else
-                cNum = 1; % Default
+        if isempty(sol.x) || sol.stat ~= 1
+            if verbose
+                warning('[rmsecal_13C] pFBA failed, using FBA solution');
             end
+            % Keep original FBA solution
+        end
+    end
 
-            if coef > 0
-                reactantC = reactantC + coef * cNum;
-            else
-                productC = productC + abs(coef) * cNum;
-            end
+    % --- Step 5: Extract simulated fluxes and calculate carbon-weighted RMSE ---
+    expCarbonFlux = zeros(nMatched, 1);
+    simCarbonFlux = zeros(nMatched, 1);
+    reactionNames = cell(nMatched, 1);
+    resultIdx = 0;
+
+    for i = 1:nRxns
+        if ~validMask(i) || ~matchedMask(i)
+            continue;
         end
 
-        % Calculate carbon-weighted flux
-        if useCarbonFlux
-            % Experimental flux (normalized, multiply by carbon)
-            expCarbonFlux(i) = matchedExpFlux(i) * reactantC;
+        resultIdx = resultIdx + 1;
 
-            % Simulated flux - need to get reaction flux from FBA solution
-            % For now, use the reaction flux directly
-            if matchedModelIdx(i) <= length(sol.x)
-                rxnFlux = sol.x(matchedModelIdx(i));
-                if rxnFlux >= 0
-                    simCarbonFlux(i) = rxnFlux * reactantC;
+        % Get data from pre-built mapping
+        reactionNames{resultIdx} = C13ReactionMap.reactions{i};
+        modelIndices = C13ReactionMap.modelIndices{i};
+        userDirections = C13ReactionMap.directions{i};  % User-provided directions from TSV
+
+        % Get carbon count from pre-built mapping
+        nCarbon = C13ReactionMap.nCarbon(i);
+
+        % Experimental flux
+        expNetFlux = expFluxes(i);
+
+        % Calculate experimental carbon flux
+        expCarbonFlux(resultIdx) = expNetFlux * nCarbon;
+
+        % Aggregate simulated fluxes from matched reactions
+        % User directions: {1} means use model forward direction, {-1} means reverse
+        simNetFlux = 0;
+        nReactions = length(modelIndices);
+
+        for j = 1:nReactions
+            idx = modelIndices(j);
+            if idx <= length(sol.x)
+                flux_j = sol.x(idx);
+                % Get user-specified direction for this reaction
+                if isempty(userDirections) || j > length(userDirections)
+                    dir_j = 1;  % Default to forward
                 else
-                    simCarbonFlux(i) = rxnFlux * productC;
+                    dir_j = userDirections(j);
                 end
-            else
-                simCarbonFlux(i) = 0;
-            end
-        else
-            expCarbonFlux(i) = matchedExpFlux(i);
-            if matchedModelIdx(i) <= length(sol.x)
-                simCarbonFlux(i) = sol.x(matchedModelIdx(i));
-            else
-                simCarbonFlux(i) = 0;
+
+                % Apply direction: 1 means use flux as-is, -1 means negate
+                simNetFlux = simNetFlux + dir_j * flux_j;
             end
         end
+
+        % Calculate simulated carbon flux
+        simCarbonFlux(resultIdx) = simNetFlux * nCarbon;
     end
 
     expFlux = expCarbonFlux;
@@ -161,9 +202,31 @@ function [rmse, expFlux, simFlux, matchResult] = rmsecal_13C(ecModel, C13Data, c
     % Calculate RMSE
     rmse = sqrt(mean((expFlux - simFlux).^2));
 
-    fprintf('[rmsecal_13C] RMSE: %.4f (matched %d reactions)\n', rmse, length(expFlux));
+    if verbose
+        fprintf('[rmsecal_13C] RMSE: %.4f (matched %d reactions)\n', rmse, nMatched);
 
+        % Show detailed comparison for first few reactions
+        nShow = min(5, length(reactionNames));
+        fprintf('  Sample comparisons:\n');
+        for j = 1:nShow
+            rxn = reactionNames{j};
+            if iscell(rxn)
+                rxnStr = ['{', strjoin(rxn, ';'), '}'];
+            else
+                rxnStr = rxn;
+            end
+            fprintf('    %s: exp=%.3f, sim=%.3f (diff=%.3f)\n', ...
+                rxnStr, expFlux(j), simFlux(j), abs(expFlux(j) - simFlux(j)));
+        end
+    end
+
+    % Store match result for debugging
     matchResult = struct();
+    matchResult.reactionNames = reactionNames;
+    matchResult.expFlux = expFlux;
+    matchResult.simFlux = simFlux;
+    matchResult.nMatched = nMatched;
+    matchResult.ecModelType = ecModelType;
 end
 
 %% ------------------- Helper Functions -------------------
@@ -171,8 +234,16 @@ end
 function modelCond = applyConstraints(ecModel, C13Data, condIdx, bioRxn, cSource)
 % applyConstraints
 %   Applies environment constraints from 13C data to the model
+%
+%   Constraint rules:
+%   - cSource (carbon source): always constrained
+%   - Constraints with NaN values: set lb=-1000 for NaN, valid value for others
+%   - Other constraints (biomass, etc.): NOT applied to model, only for RMSE
+%
+%   NaN values are not included in RMSE calculation
 
     modelCond = ecModel;
+    modelCond.lb(strcmp(modelCond.rxns, cSource)) = 0;
 
     % Apply constraints if available
     if isfield(C13Data, 'constraints') && ~isempty(fieldnames(C13Data.constraints))
@@ -190,31 +261,70 @@ function modelCond = applyConstraints(ecModel, C13Data, condIdx, bioRxn, cSource
                 continue;
             end
 
-            % Apply bounds
+            % Check if this constraint should be applied
+            shouldConstrain = false;
+
+            % 1. Always constrain cSource (carbon source)
+            if strcmp(field, cSource)
+                shouldConstrain = true;
+            end
+
+            % 2. Constrain if contains NaN (has partial valid data)
             if isfield(con, 'lb')
                 lbVals = con.lb;
-                if condIdx <= length(lbVals) && ~isnan(lbVals(condIdx))
-                    modelCond.lb(rxnIdx) = lbVals(condIdx);
+                if condIdx <= length(lbVals)
+                    hasNaN = any(isnan(lbVals));
+                    hasValid = any(~isnan(lbVals));
+                    if hasNaN && hasValid
+                        shouldConstrain = true;
+                    end
                 end
             end
 
+            if ~shouldConstrain
+                continue;  % Skip this constraint, only used for RMSE
+            end
+
+            % Apply the constraint
+            if isfield(con, 'lb')
+                lbVals = con.lb;
+                if condIdx <= length(lbVals)
+                    val = lbVals(condIdx);
+                    if isnan(val)
+                        % NaN: set to -1000 (essentially unconstrained)
+                        modelCond.lb(rxnIdx) = -1000;
+                    else
+                        % Valid value: apply it
+                        modelCond.lb(rxnIdx) = val;
+                    end
+                else
+                    modelCond.lb(rxnIdx) = -1000;
+                end
+            end
+
+            % Apply upper bound if available
             if isfield(con, 'ub')
                 ubVals = con.ub;
-                if condIdx <= length(ubVals) && ~isnan(ubVals(condIdx))
-                    modelCond.ub(rxnIdx) = ubVals(condIdx);
+                if condIdx <= length(ubVals)
+                    val = ubVals(condIdx);
+                    if isnan(val)
+                        % NaN: set to 1000 (essentially unconstrained)
+                        modelCond.ub(rxnIdx) = 1000;
+                    else
+                        % Valid value: apply it
+                        modelCond.ub(rxnIdx) = val;
+                    end
+                else
+                    modelCond.ub(rxnIdx) = 1000;
                 end
             end
         end
 
-        % Apply biomass objective if available
+        % Apply biomass objective if available (for RMSE calculation reference)
         if isfield(constraints, 'biomass')
             bioObj = constraints.biomass.objective;
-            if condIdx <= length(bioObj) && ~isnan(bioObj(condIdx))
-                bioRxnIdx = find(strcmp(modelCond.rxns, bioRxn));
-                if ~isempty(bioRxnIdx)
-                    modelCond.lb(bioRxnIdx) = bioObj(condIdx);
-                end
-            end
+            % Note: biomass constraint is NOT applied to lb here
+            % Only used for RMSE calculation reference
         end
     else
         % Default: set up aerobic glucose condition
@@ -228,25 +338,3 @@ function modelCond = applyConstraints(ecModel, C13Data, condIdx, bioRxn, cSource
     end
 end
 
-
-function nC = extractCarbonFromFormula(formula)
-% extractCarbonFromFormula
-%   Extracts the number of carbon atoms from a molecular formula.
-
-    if isempty(formula)
-        nC = 0;
-        return;
-    end
-
-    carbonMatch = regexp(formula, 'C(\d*)', 'tokens');
-    if ~isempty(carbonMatch)
-        carbonStr = carbonMatch{1}{1};
-        if isempty(carbonStr)
-            nC = 1;
-        else
-            nC = str2double(carbonStr);
-        end
-    else
-        nC = 0;
-    end
-end

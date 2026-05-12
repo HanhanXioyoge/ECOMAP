@@ -28,17 +28,5 @@ function ecModel = setUmin(ecModel, ex_rxn, umin, prot_pool)
     ecModel.lb(basalIdx) = -umin;
     % ecModel.ub(basalIdx) = 1000;
 
-    %{
-    % Find extended branch reaction
-    ext_rxn = [ex_rxn '_extended'];
-    extIdx = find(strcmp(ecModel.rxns, ext_rxn));
-
-    if ~isempty(extIdx)
-        % Extended branch: uptake beyond Umin
-        ecModel.lb(extIdx) = -1000;
-        ecModel.ub(extIdx) = -umin;  % Negative ub means beyond umin
-    end
-    %}
-
     fprintf('[setUmin] Set %s umin = %.4f\n', ex_rxn, umin);
 end

@@ -34,9 +34,6 @@ function ecModel = setSluiceParams(ecModel, ex_rxn, umin, xi, prot_pool)
     extIdx = find(strcmp(ecModel.rxns, ext_rxn));
 
     if ~isempty(extIdx)
-        % Extended branch: uptake beyond Umin with Xi coefficient
-        ecModel.lb(extIdx) = -1000;
-        ecModel.ub(extIdx) = -umin;
 
         % Update Xi coefficient in S matrix
         protRow = find(strcmp(ecModel.mets, prot_pool));

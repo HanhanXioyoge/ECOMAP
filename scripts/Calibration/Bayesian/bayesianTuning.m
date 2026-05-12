@@ -35,15 +35,17 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
     %   3 = growth_con_c13: useConstraint + useC13Flux
     %   4 = full_con_uncon_c13: all three data types
     if useConstraint && useUnconstrained && useC13Flux
-        modeTag = 'full_con_uncon_c13';      % All three data types
+        modeTag = 'ABC_SMF';       % All three data types
     elseif useConstraint && useC13Flux
-        modeTag = 'growth_con_c13';          % Constraint + 13C
+        modeTag = 'ABC_SF';        % Constraint + 13C
     elseif useConstraint && useUnconstrained
-        modeTag = 'growth_con_uncon';        % Constraint + Unconstrained
+        modeTag = 'ABC_SM';        % Constraint + Unconstrained
+    elseif useC13Flux
+        modeTag = 'ABC_F';         % 13C only
     else
-        modeTag = 'growth_con';              % Constraint only (default)
+        modeTag = 'ABC_S';         % Constraint only (default)
     end
-    stateFile = fullfile(analysisPath, ['bayesianState_LHS3_EDA_PCA_' modeTag '.mat']);
+    stateFile = fullfile(analysisPath, ['bayesianState_' modeTag '.mat']);
     
     % Data Loading
     growthData = [];  if useConstraint, growthData = readtable(fullfile(basePath,'BayesianGrowthRates.tsv'), 'FileType', 'text', 'ReadRowNames', true); end
@@ -51,10 +53,15 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
 
     % 13C Flux Data - Use dedicated loading function
     C13Fluxdata = [];
+    C13ReactionMap = [];
     if useC13Flux
         c13File = fullfile(basePath, '13CFluxdata.tsv');
         if exist(c13File, 'file')
             C13Fluxdata = load13CData(c13File, ecModel);
+            % Build reaction mapping once for all conditions
+            [C13ReactionMap, validationReport] = buildC13ReactionMap(C13Fluxdata, ecModel);
+            fprintf('[bayesianTuning] 13C reaction mapping built: %d/%d reactions matched\n', ...
+                validationReport.matchedCount, validationReport.totalReactions);
         else
             warning('13C flux data file not found: %s', c13File);
         end
@@ -99,7 +106,7 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
     else
         % Initial Run Check
         fprintf('[Init] Running initial baseline check...\n');
-        [BestRMSE, ~, ~] = abc_max(ecModel, kcats, growthData, unconsData, C13Fluxdata, 1, 1, 1, bioRxn, cSource, [], org_name);
+        [BestRMSE, ~, ~] = abc_max(ecModel, kcats, growthData, unconsData, C13Fluxdata, 1, 1, 1, bioRxn, cSource, [], org_name, C13ReactionMap);
         WorstRMSE = inf;
         kcat_100 = kcats;
         theta_100 = BestRMSE;
@@ -160,13 +167,13 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
             % Gen 3: +/- 1 range (1024 samples) - Local Search
             
             if sampledGeneration == 1
-                rangeVal = 2.5;
+                rangeVal = 2;
                 fprintf('  [Gen 1] LHS: Global Search (+/- 2.5 range, 1024 samples)...\n');
             elseif sampledGeneration == 2
-                rangeVal = 2;
+                rangeVal = 1.5;
                 fprintf('  [Gen 2] LHS: Regional Search (+/- 2 range, 1024 samples)...\n');
             else
-                rangeVal = 1.5;
+                rangeVal = 1;
                 fprintf('  [Gen 3] LHS: Local Search (+/- 1.5 range, 1024 samples)...\n');
             end
             
@@ -232,7 +239,7 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
         newRmseCells = cell(proc, 1);
         parfor j = 1:proc
             if ~isempty(kcatBatches{j})
-                [newRmseCells{j}, ~, ~] = abc_max(ecModel, kcatBatches{j}, growthData, unconsData, C13Fluxdata, 1, size(kcatBatches{j}, 2), 1, bioRxn, cSource, [], org_name);
+                [newRmseCells{j}, ~, ~] = abc_max(ecModel, kcatBatches{j}, growthData, unconsData, C13Fluxdata, 1, size(kcatBatches{j}, 2), 1, bioRxn, cSource, [], org_name, C13ReactionMap);
             end
         end
         
@@ -275,7 +282,7 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
                 genTime, BestRMSE, abs(lastBestRMSE - BestRMSE));
         
         % --- Final Termination Logic ---
-        if currentStage == 2 && noImproveCount >= 5
+        if currentStage == 2 && noImproveCount >= 3
             fprintf('\n  [Termination] Final convergence in PCA stage. No improvement for 5 generations.\n');
             break; 
         end
