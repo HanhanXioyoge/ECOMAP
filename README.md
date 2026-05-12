@@ -38,8 +38,7 @@ ECOMAP/
 ├── ecYeast/                    # S. cerevisiae project
 ├── eciML1515/                  # E. coli iML1515 project
 ├── eciCW773/                   # C. glutamicum project
-├── ecHuman/                    # Human cell model project
-└── ecModelGEM/                 # Generic ecModel GEM framework
+└── ecHuman/                    # Human cell model project
 ```
 
 Each organism project follows the structure:
@@ -86,25 +85,19 @@ Each organism project (e.g., `ecYeast/`, `eciML1515/`) requires data files in th
 
 | File | Purpose | Calibration Method | Format |
 |------|---------|-------------------|--------|
-| **growth_rates.tsv** | Growth rate measurements for sensitivity analysis | `sensitivityTuning`, `MulticonditionsensitivityTuning` | Tab-separated with condition name and growth rate |
-| **BayesianGrowthRates.tsv** | Growth rate data for Bayesian parameter estimation | `bayesianTuning` (ABC method) | Tab-separated with substrate and growth rate |
-| **UnconstrainedMaxGrowth.tsv** | Maximum growth rate constraints for GAUKS calibration | `GAUKS` | Tab-separated: condition name, max growth rate |
-| **csource.tsv** | Carbon source information and uptake bounds | PRESTO configuration | Tab-separated |
+| **BayesianGrowthRates.tsv** | Growth rate data | `sensitivityTuning`, `MulticonditionsensitivityTuning`, `bayesianTuning` (ABC method) | Tab-separated with substrate and growth rate |
+| **UnconstrainedMaxGrowth.tsv** | Maximum growth rate constraints for GAUKS calibration | `bayesianTuning` (ABC method) ,`GAUKS` | Tab-separated: condition name, max growth rate |
+| **13CFluxdata.tsv** | 13C metabolic flux data for flux balance constraints | `bayesianTuning` (use13Cflux=true) | Tab-separated: reaction ID, flux value, std |
+| **growth_rates.tsv** | Growth rate measurements| `PRESTO` | Tab-separated with condition name and growth rate |
+| **csource.tsv** | Carbon source information and uptake bounds | `PRESTO` | Tab-separated |
 
 ### Multi-Omics Data
 
 | File | Purpose | Calibration Method | Format |
 |------|---------|-------------------|--------|
-| **abs_proteomics.tsv** | Absolute protein abundances (fps) for PRESTO | `PRESTO`, `getconditions` | Gene ID, UniProt ID, abundance |
+| **abs_proteomics.tsv** | Absolute protein abundances (fps) for PRESTO | `PRESTO` | Gene ID, UniProt ID, abundance |
 | **paxDB.tsv** | Protein abundance database for cross-referencing | Model annotation | Gene ID, abundance score |
 | **total_protein.tsv** | Total protein content for protein pool calculation | `updateProtPool` | Total protein (g/gDCW) |
-
-### Flux Data
-
-| File | Purpose | Calibration Method | Format |
-|------|---------|-------------------|--------|
-| **13CFluxdata.tsv** | 13C metabolic flux data for flux balance constraints | `bayesianTuning` (use13Cflux=true) | Tab-separated: reaction ID, flux value, std |
-| **growthdata/** (folder) | Substrate uptake and growth data for verification | Model validation | Contains Aerobic.tsv, Anaerobic.tsv, Mul_csources.tsv |
 
 ### Model Annotation Data
 
@@ -117,40 +110,72 @@ Each organism project (e.g., `ecYeast/`, `eciML1515/`) requires data files in th
 
 ### Data File Formats
 
-#### growth_rates.tsv / BayesianGrowthRates.tsv
-```
-Substrate    GrowthRate
-Glucose      0.41
-Acetate      0.21
-Ethanol      0.12
-```
-
-#### UnconstrainedMaxGrowth.tsv
+#### growth_rates.tsv (for PRESTO)
+Simple two-column format: condition name and maximum growth rate.
 ```
 ConditionName    MaxGrowthRate
-Glucose          0.41
-Ethanol          0.12
+DiBartolomeo2020_Gluc    0.398366667
+DiBartolomeo2020_Etoh    0.1225
+Lahtvee2017_REF    0.1
+Yu2021_N30_005    0.05
+```
+
+#### BayesianGrowthRates.tsv (for bayesianTuning with useConstraint=true)
+Multi-column format with substrate uptake and reaction fluxes.
+```
+    Substrate    Uptake    r_2111    r_1634    r_1761    r_1808    r_2033    r_1672    r_1992    r_1654    OxAvail    Media
+1    r_1714    -13.33333333    0.36    NaN    19.82608696    0.38    0    NaN    NaN    NaN    aerobic    MIN
+2    r_1714    -15.44444444    0.39    NaN    22.4068323    0.37    0    NaN    NaN    NaN    aerobic    MIN
+...
+```
+- **Substrate**: Reaction ID for carbon source
+- **Uptake**: Substrate uptake rate (negative = consumption)
+- **r_XXXX**: Flux through various reactions (r_2111 = growth rate)
+- **OxAvail**: aerobic/anaerobic/limited
+- **Media**: MIN or other media types
+
+#### UnconstrainedMaxGrowth.tsv (for bayesianTuning with useUnconstrained=true)
+Similar to BayesianGrowthRates but only contains growth rates (no uptake data).
+```
+    Substrate    Uptake    r_2111    r_1634    r_1761    r_1808    r_2033    r_1672    r_1992    r_1654    OxAvail    Media
+1    r_1709    NaN    0.338    NaN    NaN    NaN    NaN    NaN    NaN    NaN    aerobic    MIN
+2    r_1710    NaN    0.28    NaN    NaN    NaN    NaN    NaN    NaN    NaN    aerobic    MIN
+3    r_1714    NaN    0.41    NaN    NaN    NaN    NaN    NaN    NaN    NaN    aerobic    MIN
+...
+```
+
+#### csource.tsv (for PRESTO getconditions)
+Matrix format with exchange reactions as rows and experimental conditions as columns.
+```
+exchangeRxn    DiBartolomeo2020_Gluc    DiBartolomeo2020_Etoh    Lahtvee2017_REF    ...
+r_1714    -14.38395556    0    -1.070928479    ...
+r_1808    0.666410217    -0.202562355    0.000857154    ...
+r_1634    0.444200167    0.0515425    0    ...
+r_1992    -1000    -1000    -2.446472988    ...
+r_1672    0    0    2.62755453    ...
+r_1654    -1000    -1000    -1000    ...
+...
 ```
 
 #### abs_proteomics.tsv
 ```
 gene_id    protein_id    abundance
-YAL038W    P00560       1234.5
-YBR019C    P32167       567.8
+YAL038W    P00560    1234.5
+YBR019C    P32167    567.8
 ```
 
 #### 13CFluxdata.tsv
 ```
 reaction_id    flux    flux_std
-EX_glc_e       10.5    0.8
-BIOMASS        0.41    0.02
+EX_glc_e    10.5    0.8
+BIOMASS    0.41    0.02
 ```
 
 #### kcatData/kcat_values.tsv
 ```
 ec_number    kcat    source
-2.7.1.1      120     BRENDA
-1.1.1.1      85      SABIO
+2.7.1.1    120    BRENDA
+1.1.1.1    85    SABIO
 ```
 
 ### Model File Formats

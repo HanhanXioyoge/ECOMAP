@@ -38,8 +38,7 @@ ECOMAP/
 ├── ecYeast/                    # S. cerevisiae project
 ├── eciML1515/                  # E. coli iML1515 project
 ├── eciCW773/                   # C. glutamicum project
-├── ecHuman/                    # Human cell model project
-└── ecModelGEM/                 # Generic ecModel GEM framework
+└── ecHuman/                    # Human cell model project
 ```
 
 Each organism project follows the structure:
@@ -86,8 +85,8 @@ Each organism project (e.g., `ecYeast/`, `eciML1515/`) requires data files in th
 
 | File | Purpose | Calibration Method | Format |
 |------|---------|-------------------|--------|
-| **growth_rates.tsv** | Growth rate measurements for sensitivity analysis | `sensitivityTuning`, `MulticonditionsensitivityTuning` | Tab-separated with condition name and growth rate |
-| **BayesianGrowthRates.tsv** | Growth rate data for Bayesian parameter estimation | `bayesianTuning` (ABC method) | Tab-separated with substrate and growth rate |
+| **growth_rates.tsv** | Growth rate measurements for PRESTO| `PRESTO` | Tab-separated with condition name and growth rate |
+| **BayesianGrowthRates.tsv** | Growth rate measurements for Bayesian parameter estimation | `bayesianTuning` (ABC method) | Tab-separated with substrate and growth rate |
 | **UnconstrainedMaxGrowth.tsv** | Maximum growth rate constraints for GAUKS calibration | `GAUKS` | Tab-separated: condition name, max growth rate |
 | **csource.tsv** | Carbon source information and uptake bounds | PRESTO configuration | Tab-separated |
 
