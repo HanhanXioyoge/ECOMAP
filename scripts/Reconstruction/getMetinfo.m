@@ -17,7 +17,7 @@ function [model, noSMILES, noInChIKey] = getMetinfo(model, verbosity, methods, p
 %                 - (optional) metInChIKey : Nx1 cellstr (kept if non-empty)
 %   verbosity   : 0=silent, 1=info, 2=debug (controls prints; NOT part of 'parameters').
 %   parameters  : struct with at least
-%                 - dataDir : folder path for the local cache 'metInfo.tsv'
+%                 - reconstructionDir : folder path for the local cache 'metInfo.tsv'
 %   methods     : which steps to run. Accepts:
 %                 - string like 'ABC', 'AC', 'B' (case-insensitive). Default 'ABC'.
 %                 - logical/numeric vector [A B C], e.g. [1 0 1].
@@ -29,7 +29,7 @@ function [model, noSMILES, noInChIKey] = getMetinfo(model, verbosity, methods, p
 %   noInChIKey  : unique names still missing InChIKey after selected steps
 %
 % NOTES
-%   - Local cache file: <dataDir>/metInfo.tsv  (columns: name \t smiles \t inchikey).
+%   - Local cache file: <reconstructionDir>/metInfo.tsv  (columns: name \t smiles \t inchikey).
 %     It is read once and re-written atomically at the end if updated.
 %   - Name cleaning: drop names that match '^prot_.*' entirely, then strtrim.
 %   - STEP B endpoint:
@@ -59,13 +59,13 @@ function [model, noSMILES, noInChIKey] = getMetinfo(model, verbosity, methods, p
     if nargin < 3 || isempty(methods), methods = [0 0 0]; end
     [useA, useB, useC] = normalize_methods(methods);
 
-    if ~isfield(parameters, 'dataDir') || ~isfolder(parameters.dataDir)
-        if ~isfield(parameters,'dataDir'), error('parameters.dataDir is required.'); end
-        mkdir(parameters.dataDir);
+    if ~isfield(parameters, 'reconstructionDir') || ~isfolder(parameters.reconstructionDir)
+        if ~isfield(parameters,'reconstructionDir'), error('parameters.reconstructionDir is required.'); end
+        mkdir(parameters.reconstructionDir);
     end
 
-    dataDir      = parameters.dataDir;
-    metInfoFile  = fullfile(dataDir, 'metInfo.tsv');  % renamed from smilesDB.tsv
+    reconstructionDir      = parameters.reconstructionDir;
+    metInfoFile  = fullfile(reconstructionDir, 'metInfo.tsv');  % renamed from smilesDB.tsv
     chemPropPath = fullfile(findECOMAProot, 'scripts','database','chem_prop.tsv');
 
     % -------- names preprocessing --------

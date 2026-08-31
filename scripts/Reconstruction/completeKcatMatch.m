@@ -24,7 +24,7 @@ function kcatList_complete = completeKcatMatch(model, OUT, DLmodel, parameters)
 %               and use OUT_saved.overallTables.
 %   DLmodel   : char/string in {'DLKcat','UniKP','CatPred'}
 %   parameters: struct with fields:
-%               - dataDir (required) : folder holding CSVs (kept for sanity check)
+%               - reconstructionDir (required) : folder holding CSVs (kept for sanity check)
 %               - outputDir (optional): where AnalyzeKcatMatches.mat may reside
 %
 % Output
@@ -48,8 +48,8 @@ function kcatList_complete = completeKcatMatch(model, OUT, DLmodel, parameters)
             error('ParameterManager is not set.');
         end
     end
-    if ~isfield(parameters,'dataDir') || isempty(parameters.dataDir)
-        error('parameters.dataDir is required and must point to the folder of CSVs.');
+    if ~isfield(parameters,'reconstructionDir') || isempty(parameters.reconstructionDir)
+        error('parameters.reconstructionDir is required and must point to the folder of CSVs.');
     end
     if ~isfield(parameters,'outputDir') || isempty(parameters.outputDir)
         parameters.outputDir = pwd;

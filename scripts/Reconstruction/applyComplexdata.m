@@ -52,10 +52,10 @@ function [model, foundComplex, proposedComplex, appliedComplex] = applyComplexda
 
 
     % ------------------- Load UniProt DB (for gene lookup) -------------------
-    if ~isfield(parameters,'dataDir') || isempty(parameters.dataDir)
-        error('parameters.dataDir is required to locate uniprot.tsv.');
+    if ~isfield(parameters,'reconstructionDir') || isempty(parameters.reconstructionDir)
+        error('parameters.reconstructionDir is required to locate uniprot.tsv.');
     end
-    uniprot_Path = fullfile(parameters.dataDir, 'uniprot.tsv');
+    uniprot_Path = fullfile(parameters.reconstructionDir, 'uniprot.tsv');
     if ~exist(uniprot_Path,'file')
         error('UniProt TSV not found at: %s', uniprot_Path);
     end

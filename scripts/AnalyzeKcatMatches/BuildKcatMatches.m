@@ -44,7 +44,7 @@ function MATCH = BuildKcatMatches(DeepLearningModel, complex_name, aggMethod, fi
 %       One or more of {'DLKcat','UniKP','CatPred'}; default = all three.
 %   filePath : directory containing <Model>.csv prediction files
 %   parameters : struct; if empty, ParameterManager.getParams() is used.
-%       - parameters.dataDir (used only if filePath is empty)
+%       - parameters.reconstructionDir (used only if filePath is empty)
 %   aggMethod : 'mean' (default) or 'median'  -- aggregation in log10-space
 %   complex_name : string|char|cellstr
 %       List of reaction names to be flagged as complex. Optional.
@@ -66,10 +66,10 @@ function MATCH = BuildKcatMatches(DeepLearningModel, complex_name, aggMethod, fi
     end
 
     if nargin < 4 || isempty(filePath)
-        filePath = getfield_def(parameters,'dataDir','');
+        filePath = getfield_def(parameters,'reconstructionDir','');
         filePath = fullfile(filePath, 'kcatData');
         if isempty(filePath)
-            error('filePath is required or set parameters.dataDir.');
+            error('filePath is required or set parameters.reconstructionDir.');
         end
     end
 

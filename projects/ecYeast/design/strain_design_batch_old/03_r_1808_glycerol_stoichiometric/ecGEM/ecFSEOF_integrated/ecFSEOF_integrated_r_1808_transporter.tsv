@@ -1,0 +1,10 @@
+rxn_IDs	rxnNames	slope	grRules	rxn_formula
+r_1172_EXP_2	glycerol transport via channel	1	YLL043W	glycerol[c] + 0.15537 prot_P23900[c] => glycerol[e]
+r_1277	water diffusion	0.523976810694979	YLL052C or YPR192W	H2O[e] <=> H2O[c]
+r_1115_EXP_4	ammonia transport	0.077093522988689	YPR138C	ammonium[e] + 0.025968 prot_P53390[c] => ammonium[c]
+r_2132_EXP_2	oxoglutarate/malate exchange	0.0346543949911685	YPL134C	(S)-malate[c] + 2-oxoglutarate[m] + 0.4253 prot_Q03028[c] => (S)-malate[m] + 2-oxoglutarate[c]
+r_1194	L-glutamate transport	0.0142946668653567	YPR021C	L-glutamate[c] + 0.49764 prot_Q12482[c] => L-glutamate[m]
+r_1811	glycine transport	0.00457957699954816	YPR058W	L-glycine[c] + 1.0852 prot_P32331[c] => L-glycine[m]
+r_4698_EXP_2	ethyl propionate transport	0.00401615543543261	YKL217W	ethyl propionate[c] + 5.2133 prot_P36035[c] => ethyl propionate[e]
+r_1642_REV	adenosine 3',5'-bisphosphate transport (reversible)	0.00401252218118195	YPR011C	adenosine 3',5'-bismonophosphate[m] + 1.9265 prot_Q12251[c] => adenosine 3',5'-bismonophosphate[c]
+r_1099_EXP_1	2-oxoadipate and 2-oxoglutarate transport	0.00396071589816	YOR222W	2-oxoadipic acid[m] + 2-oxoglutarate[c] + 0.38505 prot_Q99297[c] => 2-oxoadipic acid[c] + 2-oxoglutarate[m]

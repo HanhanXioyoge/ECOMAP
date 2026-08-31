@@ -9,7 +9,7 @@ function OUT = AnalyzeKcatMatches(MATCH, DeepLearningModel, saveAnalysisMat, sav
 %         selected models, where a sample is defined by (ProteinID + metabolite identity).
 %   Additionally, generate per-model scatter plots on the COMMON set with the
 %   number of points annotated in the figure, and optionally save the OUT
-%   struct and figures to parameters.outputDir.
+%   struct and figures to parameters.analysisDir.
 %
 % Inputs
 %   MATCH            : struct with fields {DLKcat, UniKP, CatPred} (a subset is fine).
@@ -19,7 +19,7 @@ function OUT = AnalyzeKcatMatches(MATCH, DeepLearningModel, saveAnalysisMat, sav
 %                      predicted_kcat, exp_kcat.
 %   DeepLearningModel: string|char|cellstr — subset of {'DLKcat','UniKP','CatPred'}.
 %   parameters       : struct (if empty, ParameterManager.getParams() will be used).
-%                      If saving, requires parameters.outputDir.
+%                      If saving, requires parameters.analysisDir.
 %   saveAnalysisMat  : logical (default false) — save OUT as AnalyzeKcatMatches.mat
 %   saveFigs         : logical (default false) — save per-model figures (COMMON set only)
 %   figFormat        : char (default 'png') — {'png','tif','jpg','pdf','svg'}
@@ -82,13 +82,14 @@ function OUT = AnalyzeKcatMatches(MATCH, DeepLearningModel, saveAnalysisMat, sav
     end
 
     % Validate output directory if saving
-    outputDir = getfield_def(parameters, 'outputDir', "");
+    analysisDir = getfield_def(parameters, 'analysisDir', "");
     if (saveAnalysisMat || saveFigs)
-        if outputDir == ""
-            error('AnalyzeKcatMatches:MissingOutputDir', ...
-                 'parameters.outputDir is required when saving mat or figures.');
+        if analysisDir == ""
+            error('AnalyzeKcatMatches:MissinganalysisDir', ...
+                 'parameters.analysisDir is required when saving mat or figures.');
         end
-        if ~exist(outputDir, 'dir'), mkdir(outputDir); end
+        analysisDir = fullfile(analysisDir, 'AnalyzeKcatMatches');
+        if ~exist(analysisDir, 'dir'), mkdir(analysisDir); end
     end
 
     % ------------------------- Build per-model sample keys -------------------------
@@ -283,7 +284,7 @@ function OUT = AnalyzeKcatMatches(MATCH, DeepLearningModel, saveAnalysisMat, sav
         hold off;
 
         if saveFigs
-            outFigName = fullfile(outputDir, sprintf('Benchmark_%s.%s', tag, figFormat));
+            outFigName = fullfile(analysisDir, sprintf('Benchmark_%s.%s', tag, figFormat));
             try
                 if any(strcmpi(figFormat, {'png','jpg','tif'}))
                     exportgraphics(figH, outFigName, 'Resolution', figResolutionDPI);
@@ -308,7 +309,7 @@ function OUT = AnalyzeKcatMatches(MATCH, DeepLearningModel, saveAnalysisMat, sav
 
     % ------------------------- Save OUT (optional) -------------------------
     if saveAnalysisMat
-        outMatPath = fullfile(outputDir, 'AnalyzeKcatMatches.mat');
+        outMatPath = fullfile(analysisDir, 'AnalyzeKcatMatches.mat');
         try
             OUT_saved = OUT;
             save(outMatPath, 'OUT_saved', '-v7.3');

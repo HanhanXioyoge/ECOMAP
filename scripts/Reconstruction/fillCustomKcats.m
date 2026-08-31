@@ -28,7 +28,7 @@ function [model, rxnUpdated, notMatch] = fillCustomKcats(model, customKcats, rxn
 
     % Load custom kcat data if not provided
     if nargin < 2 || isempty(customKcats)
-        customKcats = fullfile(parameters.dataDir, 'kcatData', 'customKcats.csv');
+        customKcats = fullfile(parameters.reconstructionDir, 'kcatData', 'customKcats.csv');
     end
     
     % If the input is a structure, validate the essential fields

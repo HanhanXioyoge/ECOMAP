@@ -1,0 +1,7 @@
+targetRxn,metabolite,origin,chemicalClass,ecFactoryClassification,ecomapClassification
+r_1549,"(R,R)-2,3-butanediol",native,alcohol,stoichiometric,stoichiometric
+r_1683,"choline",native,alkaloid,kinetic,kinetic
+r_1916,"laurate",native,fatty acids and lipids,kinetic,kinetic
+r_2189,"oleate",native,fatty acids and lipids,stoichiometric,stoichiometric
+r_2188,"hexanoate",native,organic acid,kinetic,kinetic
+r_2033,"pyruvate",native,organic acid,stoichiometric,stoichiometric

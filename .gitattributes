@@ -1,0 +1,12 @@
+projects/*/reconstruction/kcatData/*_OKOplus_input.csv filter=lfs diff=lfs merge=lfs -text
+projects/*/reconstruction/kcatData/OKOplus_candidates.csv filter=lfs diff=lfs merge=lfs -text
+projects/*/reconstruction/kcatData/oko_plus_runs/**/*.csv filter=lfs diff=lfs merge=lfs -text
+projects/*/reconstruction/kcatData/*_checkpoint.mat filter=lfs diff=lfs merge=lfs -text
+projects/ecHuman/models/Human.xml filter=lfs diff=lfs merge=lfs -text
+projects/ecHuman/models/ecModel.yml filter=lfs diff=lfs merge=lfs -text
+projects/ecHuman/reconstruction/kcatData/*.csv filter=lfs diff=lfs merge=lfs -text
+projects/ecHuman/reconstruction/uniprot.tsv filter=lfs diff=lfs merge=lfs -text
+projects/eciML1515/models/iML1515.xml filter=lfs diff=lfs merge=lfs -text
+DLmode_evaluation/data/*.csv filter=lfs diff=lfs merge=lfs -text
+scripts/database/chem_prop.tsv filter=lfs diff=lfs merge=lfs -text
+scripts/external_kcat_prediction/DLKcat/input/adjacencies.npy filter=lfs diff=lfs merge=lfs -text

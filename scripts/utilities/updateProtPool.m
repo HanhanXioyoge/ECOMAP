@@ -12,7 +12,7 @@ function model = updateProtPool(model, updateFfactor, Ptot, f, sigma, parameters
 %   Ptot            - Total protein content in the cell (optional, default: model.enzymeConstraints.Ptot)
 %   f               - Initial f-factor (fraction of protein mass for enzymes) (optional, default: model.enzymeConstraints.f)
 %   sigma           - Scaling factor for the protein pool (optional, default: model.enzymeConstraints.sigma)
-%   parameters      - Struct containing additional parameters (must include 'dataDir') (optional)
+%   parameters      - Struct containing additional parameters (must include 'reconstructionDir') (optional)
 %
 % Output:
 %   model           - Updated ecModel with modified protein pool exchange (prot_pool_exchange)
@@ -30,10 +30,10 @@ function model = updateProtPool(model, updateFfactor, Ptot, f, sigma, parameters
     end
     
     % Check if the data directory is provided
-    if ~isfield(parameters, 'dataDir') || isempty(parameters.dataDir)
-        error('parameters.dataDir is required and must point to the folder containing CSV files.');
+    if ~isfield(parameters, 'reconstructionDir') || isempty(parameters.reconstructionDir)
+        error('parameters.reconstructionDir is required and must point to the folder containing CSV files.');
     end
-    dataDir = parameters.dataDir;
+    reconstructionDir = parameters.reconstructionDir;
     
     % Set default values for optional inputs
     if nargin < 2 || isempty(updateFfactor)
@@ -53,13 +53,13 @@ function model = updateProtPool(model, updateFfactor, Ptot, f, sigma, parameters
     % -------------------- Update f-factor Using Proteomics Data --------------------
     % Update the f-factor if specified by the user
     if updateFfactor
-        if exist(fullfile(dataDir, 'paxDB.tsv'), 'file')
-            protData = fullfile(dataDir, 'paxDB.tsv');
+        if exist(fullfile(reconstructionDir, 'paxDB.tsv'), 'file')
+            protData = fullfile(reconstructionDir, 'paxDB.tsv');
             
             % Load UniProt data if necessary
-            uniprot_Path = fullfile(parameters.dataDir, 'uniprot.tsv');
+            uniprot_Path = fullfile(parameters.reconstructionDir, 'uniprot.tsv');
             if ~isfile(uniprot_Path)
-                DownloadUniProtData(parameters.uniprot, parameters.dataDir);  % Download UniProt data if not available
+                DownloadUniProtData(parameters.uniprot, parameters.reconstructionDir);  % Download UniProt data if not available
             end
             dbStruct = ParseUniProtData(uniprot_Path);  % Parse UniProt data
             

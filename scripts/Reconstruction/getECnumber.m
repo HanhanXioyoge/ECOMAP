@@ -23,9 +23,9 @@ function model = getECnumber(model, parameters)
     end
 
     % -------- Load UniProt (local cache or download) --------
-    uniprot_Path = fullfile(parameters.dataDir, 'uniprot.tsv');
+    uniprot_Path = fullfile(parameters.reconstructionDir, 'uniprot.tsv');
     if ~isfile(uniprot_Path)
-        DownloadUniProtData(parameters.uniprot, parameters.dataDir);
+        DownloadUniProtData(parameters.uniprot, parameters.reconstructionDir);
     end
     dbStruct = ParseUniProtData(uniprot_Path);
     if isempty(dbStruct) || ~isfield(dbStruct,'ID') || ~isfield(dbStruct,'eccodes')

@@ -1,0 +1,22 @@
+Slope,rowID,Enzyme_ID,Enzyme_Name,Subsystems,Direction,GrRule
+0.95111,16,r_0020,2-deoxy-D-arabino-heptulosonate 7-phosphate synthetase,,0,YDR035W or YBR249C
+0.95111,34,r_0039,3-dehydroquinate dehydratase,,0,YDR127W
+0.95111,35,r_0040,3-dehydroquinate synthase,,0,YDR127W
+0.95111,49,r_0065,3-phosphoshikimate 1-carboxyvinyltransferase,,0,YDR127W
+1,148,r_0169,"aldehyde dehydrogenase (2-phenylethanol, NAD)",,0,YBR145W or YDL168W or YOL086C
+0.95723,244,r_0278,chorismate mutase,,0,YPR060C
+0.95111,245,r_0279,chorismate synthase,,0,YGL148W
+1,676,r_0854,phenylpyruvate decarboxylase,,0,YDR380W
+0.28177,683,r_0887,phosphofructokinase (s7p),,0,YGR240C and YMR205C
+0.97572,715,r_0938,prephenate dehydratase,,0,YNL316C
+0.22956,751,r_0982,ribose-5-phosphate isomerase,,1,YOR095C
+0.28177,759,r_0990,"sedoheptulose 1,7-bisphosphate D-glyceraldehyde-3-phosphate-lyase",,1,YKL060C
+0.95111,763,r_0996,shikimate dehydrogenase,,0,YDR127W
+0.95111,764,r_0997,shikimate kinase,,0,YDR127W
+0.28177,807,r_1049,transketolase 1,,1,YBR117C or YPR074C
+0.95111,876,r_1127,citrate transport,,-1,YBR291C
+0.90081,926,r_1194,L-glutamate transport,,0,YPR021C
+0.95111,1053,r_1567,2-dehydro-3-deoxy-D-arabino-heptonate7-phohsphate transport,,-1,
+1,1071,r_1589,2-phenylethanol exchange,,0,
+1,1072,r_1590,2-phenylethanol transport,,-1,
+0.95111,1174,r_1708,D-erythrose 4-phosphate transport,,1,

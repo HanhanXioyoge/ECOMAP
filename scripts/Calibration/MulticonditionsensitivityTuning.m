@@ -42,10 +42,10 @@ function [model, summaryTbl, changesTbl] = MulticonditionsensitivityTuning(model
 
     bioRxn   = parameters.bioRxn;
     c_source = parameters.c_source;
-    basePath = parameters.dataDir;
+    basePath = parameters.calibrationDir;
     org_name = parameters.org_name;
 
-    T = readtable(fullfile(basePath, 'UnconstrainedMaxGrowth.tsv'), ...
+    T = readtable(fullfile(basePath, 'data','UnconstrainedMaxGrowth.tsv'), ...
         'FileType', 'text', 'ReadRowNames', true);
 
     nEnv = height(T);
@@ -182,7 +182,7 @@ function [model, summaryTbl, changesTbl] = MulticonditionsensitivityTuning(model
 
     % Optional: save results to files (silent)
     if isfield(parameters,'outputDir') && ~isempty(parameters.outputDir)
-        outDir = parameters.outputDir;
+        outDir = parameters.calibrationDir;
         if ~exist(outDir,'dir'); mkdir(outDir); end
         writetable(summaryTbl, fullfile(outDir,'MultiCondition_Summary.tsv'), 'FileType','text','Delimiter','\t');
         writetable(changesTbl, fullfile(outDir,'MultiCondition_KcatChanges.tsv'), 'FileType','text','Delimiter','\t');

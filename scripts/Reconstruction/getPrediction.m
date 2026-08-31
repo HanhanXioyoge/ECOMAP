@@ -1,12 +1,12 @@
 function kcatList_prediction = getPrediction(model, DLmodel, parameters)
 % getPrediction
-%   Read predicted kcat CSV from dataDir for one of {'DLKcat','UniKP','CatPred'}
+%   Read predicted kcat CSV from reconstructionDir for one of {'DLKcat','UniKP','CatPred'}
 %   and return a standardized kcatList struct compatible with selectKcatValue.
 %
 % Inputs:
 %   model      :  ECOMAP ecGEM
 %   DLmodel    : 'DLKcat' | 'UniKP' | 'CatPred'
-%   parameters : struct with field dataDir (folder containing the CSV files)
+%   parameters : struct with field reconstructionDir (folder containing the CSV files)
 %
 % Output:
 %   kcatList_prediction : struct with fields
@@ -23,10 +23,10 @@ function kcatList_prediction = getPrediction(model, DLmodel, parameters)
             error('ParameterManager is not set.');
         end
     end
-    if ~isfield(parameters,'dataDir') || isempty(parameters.dataDir)
-        error('parameters.dataDir is required and must point to the folder of CSVs.');
+    if ~isfield(parameters,'reconstructionDir') || isempty(parameters.reconstructionDir)
+        error('parameters.reconstructionDir is required and must point to the folder of CSVs.');
     end
-    dataDir = fullfile(parameters.dataDir, 'kcatData');
+    reconstructionDir = fullfile(parameters.reconstructionDir, 'kcatData');
 
     if nargin < 2 || isempty(DLmodel)
         error('You must specify DLmodel as one of {''DLKcat'',''UniKP'',''CatPred''}.');
@@ -38,7 +38,7 @@ function kcatList_prediction = getPrediction(model, DLmodel, parameters)
     end
 
     % ------------------------- Resolve file path --------------------------
-    inFile = fullfile(dataDir, [DLmodel, '.csv']);
+    inFile = fullfile(reconstructionDir, [DLmodel, '.csv']);
     if ~exist(inFile,'file')
         error('Prediction file not found: %s', inFile);
     end

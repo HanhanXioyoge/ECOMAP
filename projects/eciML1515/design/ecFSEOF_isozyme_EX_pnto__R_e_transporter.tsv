@@ -1,0 +1,12 @@
+rxn_IDs	rxnNames	slope	grRules	rxn_formula
+ATPS4rpp_EXP_1	ATP synthase (four protons for one ATP) (periplasm)	6.88208151775861	b3739 and b3731 and b3733 and b3735 and b3734 and b3732 and b3738 and b3736 and b3737	ADP[c] + 4 H+[p] + Phosphate[c] + 0.46292 prot_pool[c] => ATP[c] + H2O[c] + 3 H+[c]
+NADH17pp	NADH dehydrogenase (menaquinone-8 & 3 protons) (periplasm)	3.63204147145018	b2279 and b2277 and b2284 and b2282 and b2278 and b2288 and b2276 and b2287 and b2283 and b2281 and b2286 and b2280 and b2285	4 H+[c] + Menaquinone 8[c] + Nicotinamide adenine dinucleotide - reduced[c] + 0.11448 prot_pool[c] => 3 H+[p] + Menaquinol 8[c] + Nicotinamide adenine dinucleotide[c]
+H2Otex	H2O transport via diffusion (extracellular to periplasm)	2.35834646504048	b3875 or b1319 or b0957 or b2215 or b0241 or b1377 or b0929	H2O[e] <=> H2O[p]
+H2Otpp	H2O transport via diffusion (periplasm)	2.35834646504048	b0875	H2O[p] <=> H2O[c]
+O2tex	Oxygen transport via diffusion (extracellular to periplasm)	1.93612618318815	b0241 or b0929 or b1377 or b2215	O2 O2[e] <=> O2 O2[p]
+ACt2rpp_REV	Acetate reversible transport via proton symport (periplasm) (reversible)	1.44301934379364	b0010	Acetate[c] + H+[c] + 0.25765 prot_pool[c] => Acetate[p] + H+[p]
+ACtex	Acetate transport via diffusion (extracellular to periplasm)	1.44301934379364	b0241 or b0929 or b1377 or b2215	Acetate[e] <=> Acetate[p]
+NH4tex	Ammonia transport via diffusion (extracellular to periplasm)	0.294961693030989	b1377 or b2215 or b0241 or b0929	Ammonium[e] <=> Ammonium[p]
+NH4tpp	Ammonia reversible transport (periplasm)	0.294961693030989	b0451	Ammonium[p] + 0.27981 prot_pool[c] => Ammonium[c]
+PItex	Phosphate transport via diffusion (extracellular to periplasm)	0.115660893522556	b0241 or b0929 or b1377 or b2215	Phosphate[e] <=> Phosphate[p]
+PIt2rpp_EXP_1	Phosphate reversible transport via symport (periplasm)	0.115660893522556	b3493	H+[p] + Phosphate[p] + 0.0057471 prot_pool[c] => H+[c] + Phosphate[c]

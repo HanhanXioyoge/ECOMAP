@@ -1,0 +1,45 @@
+targetRxn,metabolite,origin,chemicalClass,ecFactoryClassification,ecomapClassification
+r_1549,"(R,R)-2,3-butanediol",native,alcohol,stoichiometric,stoichiometric
+r_1589,"2-phenylethanol",native,alcohol,stoichiometric,stoichiometric
+r_1808,"glycerol",native,alcohol,stoichiometric,stoichiometric
+r_1865,"isoamylol",native,alcohol,stoichiometric,stoichiometric
+r_1866,"isobutanol",native,alcohol,stoichiometric,stoichiometric
+r_1683,"choline",native,alkaloid,kinetic,kinetic
+r_1873,"L-alanine",native,amino acid,stoichiometric,stoichiometric
+r_1879,"L-arginine",native,amino acid,stoichiometric,stoichiometric
+r_1880,"L-asparagine",native,amino acid,stoichiometric,stoichiometric
+r_1881,"L-aspartate",native,amino acid,stoichiometric,stoichiometric
+r_4519,"L-citrulline",native,amino acid,stoichiometric,stoichiometric
+r_1883,"L-cysteine",native,amino acid,stoichiometric,stoichiometric
+r_1889,"L-glutamate",native,amino acid,stoichiometric,stoichiometric
+r_1891,"L-glutamine",native,amino acid,stoichiometric,stoichiometric
+r_1810,"L-glycine",native,amino acid,stoichiometric,stoichiometric
+r_1893,"L-histidine",native,amino acid,stoichiometric,stoichiometric
+r_1896,"L-homoserine",native,amino acid,stoichiometric,stoichiometric
+r_1897,"L-isoleucine",native,amino acid,stoichiometric,stoichiometric
+r_1899,"L-leucine",native,amino acid,stoichiometric,stoichiometric
+r_1900,"L-lysine",native,amino acid,stoichiometric,stoichiometric
+r_1902,"L-methionine",native,amino acid,stoichiometric,stoichiometric
+r_1903,"L-phenylalanine",native,amino acid,stoichiometric,stoichiometric
+r_1904,"L-proline",native,amino acid,stoichiometric,kinetic
+r_1906,"L-serine",native,amino acid,stoichiometric,stoichiometric
+r_1911,"L-threonine",native,amino acid,stoichiometric,stoichiometric
+r_1912,"L-tryptophan",native,amino acid,stoichiometric,stoichiometric
+r_1913,"L-tyrosine",native,amino acid,stoichiometric,stoichiometric
+r_1914,"L-valine",native,amino acid,stoichiometric,stoichiometric
+r_1987,"ornithine",native,amino acid,stoichiometric,stoichiometric
+r_4677,"tyrosol",heterologous,aromatic,kinetic,stoichiometric
+r_2024,"putrescine",native,bioamine,stoichiometric,stoichiometric
+r_2052,"spermine",native,bioamine,stoichiometric,stoichiometric
+r_1916,"laurate",native,fatty acids and lipids,kinetic,kinetic
+r_2189,"oleate",native,fatty acids and lipids,stoichiometric,stoichiometric
+r_1994,"palmitoleate",native,fatty acids and lipids,stoichiometric,stoichiometric
+r_1757,"ergosterol",native,fatty acids and lipids,stoichiometric,kinetic
+r_2056,"succinate",native,organic acid,stoichiometric,stoichiometric
+r_1552,"(S)-malate",native,organic acid,stoichiometric,stoichiometric
+r_1586,"2-oxoglutarate",native,organic acid,stoichiometric,stoichiometric
+r_1634,"acetate",native,organic acid,stoichiometric,stoichiometric
+r_1687,"citrate",native,organic acid,stoichiometric,stoichiometric
+r_1798,"fumarate",native,organic acid,stoichiometric,stoichiometric
+r_2188,"hexanoate",native,organic acid,kinetic,kinetic
+r_2033,"pyruvate",native,organic acid,stoichiometric,stoichiometric

@@ -1,0 +1,7 @@
+Slope,rowID,Enzyme_ID,Enzyme_Name,Subsystems,Direction,GrRule
+0.3071,346,r_0450,fructose-bisphosphate aldolase,,1,YKL060C
+0.32977,362,r_0467,glucose-6-phosphate isomerase,,1,YBR196C
+1,383,r_0489,glycerol-3-phosphatase,,0,YER062C or YIL053W
+0.3071,682,r_0886,phosphofructokinase,,0,YGR240C and YMR205C
+1,904,r_1172,glycerol transport via channel,,0,YFL054C or YLL043W
+1,1251,r_1808,glycerol exchange,,0,

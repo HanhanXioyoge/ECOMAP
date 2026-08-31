@@ -1,0 +1,16 @@
+KO_ID,KO_Name,Subsystems,GrRule
+H2Otex,H2O transport via diffusion (extracellular to periplasm),,b3875 or s0001 or b1319 or b0957 or b2215 or b0241 or b1377 or b0929
+GLYCLTt2rpp,"Glycolate transport via proton symport, reversible (periplasm)",,b3603 or b2975
+
+FE2tex,Iron (II) transport via diffusion (extracellular to periplasm),,b1377 or b2215 or b0241 or b0929
+LCARSyi,"Lacaldehyde reductase (S-propane-1,2-diol forming)",,b0325
+
+H2Otex,H2O transport via diffusion (extracellular to periplasm),,b3875 or s0001 or b1319 or b0957 or b2215 or b0241 or b1377 or b0929
+PGCD,Phosphoglycerate dehydrogenase,,b2913
+
+INSK,Insosine kinase,,b0477
+DHCIND,"2,3-dihydroxycinnamate dehydrogenase",,b2541
+
+H2Otex,H2O transport via diffusion (extracellular to periplasm),,b3875 or s0001 or b1319 or b0957 or b2215 or b0241 or b1377 or b0929
+GLCptspp,D-glucose transport via PEP:Pyr PTS (periplasm),,(b1621 and b2415 and b2417 and b2416) or (b1101 and b2416 and b2415 and b2417) or (b1819 and b2415 and b1818 and b1817 and b2416)
+

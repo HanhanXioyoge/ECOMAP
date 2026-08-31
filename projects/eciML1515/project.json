@@ -1,0 +1,79 @@
+{
+  "projectName": "eciML1515",
+  "projectDir": "C:\\chenqilin\\projects\\ECOMAP\\projects\\eciML1515",
+  "parameterManager": "eciML1515ParameterManagement.m",
+  "parameterManagerFunction": "eciML1515ParameterManagement",
+  "stage": "Initialized",
+  "createdAt": "2026-08-03T06:58:12Z",
+  "updatedAt": "2026-08-05T06:00:55.714366+00:00",
+  "directories": {
+    "models": "C:\\chenqilin\\projects\\ECOMAP\\projects\\eciML1515\\models",
+    "reconstruction": "C:\\chenqilin\\projects\\ECOMAP\\projects\\eciML1515\\reconstruction",
+    "calibration": "C:\\chenqilin\\projects\\ECOMAP\\projects\\eciML1515\\calibration",
+    "analysis": "C:\\chenqilin\\projects\\ECOMAP\\projects\\eciML1515\\analysis",
+    "design": "C:\\chenqilin\\projects\\ECOMAP\\projects\\eciML1515\\design"
+  },
+  "projectId": "eciML1515",
+  "name": "eciML1515",
+  "modelId": "iML1515.xml",
+  "modelType": "GEM",
+  "organism": "Escherichia coli",
+  "params": {
+    "projectDir": "obj.params.path",
+    "projectName": "eciML1515",
+    "InitialModel": "iML1515.xml",
+    "modeltype": "Tradition",
+    "sigma": 0.5,
+    "Ptot": 0.55,
+    "f": 0.55,
+    "org_name": "Escherichia coli",
+    "uniprot": {
+      "type": "proteome",
+      "ID": "UP000000625",
+      "geneIDfield": "gene_oln",
+      "reviewed": true
+    },
+    "taxonomicID": "83333",
+    "c_source": "EX_glc__D_e",
+    "bioRxn": "biomass",
+    "PRESTO": {
+      "runParallel": true,
+      "ncpu": 8,
+      "nIter": 50,
+      "epsilon": 100000,
+      "lambda": 1e-05,
+      "theta": 0.6
+    },
+    "organism": "custom",
+    "topology": "all",
+    "annotationStages": [
+      "ec",
+      "metabolite"
+    ],
+    "deepLearningModels": [
+      "DLKcat",
+      "UniKP",
+      "CatPred"
+    ],
+    "predictionType": "bestAvailable",
+    "useCustomKcatFile": false,
+    "carbonSource": "glucose",
+    "biomassReaction": "biomass",
+    "topologies": [
+      "basic",
+      "isozyme",
+      "integrated"
+    ],
+    "runComplexAnnotation": true,
+    "metaboliteSources": [],
+    "runEcAnnotation": true,
+    "runMetaNetXIntegration": true,
+    "annotationOptions": {
+      "runComplexAnnotation": true,
+      "runEcAnnotation": true,
+      "metaboliteSources": [],
+      "runMetaNetXIntegration": true
+    }
+  },
+  "status": "ready"
+}

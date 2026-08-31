@@ -1,88 +1,189 @@
-# ECOMAP - ecModel Reconstruction Workflow 🧫
+# ECOMAP Reconstruction Module
 
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![MATLAB R2022a+](https://img.shields.io/badge/MATLAB-R2022a%2B-blue.svg)](https://www.mathworks.com/)
-[![COBRA Toolbox](https://img.shields.io/badge/COBRA_Toolbox-3.1%2B-orange.svg)](https://opencobra.github.io/cobratoolbox/)
+This module normalizes conventional GEMs or external ecGEMs into the ECOMAP model representation and supports enzyme-constraint topology construction, protein and metabolite annotation, kcat prediction and matching, and model export. The numerical routines invoked by the web reconstruction workflow are also located in this directory.
 
-> Construct ecModel from conventional GEM | Import ecModel developed by alternative methodologies
+Return to the [project overview](../../README.md).
 
-## 🌐 Environmental preparation
-### Toolkit
-- [COBRA Toolbox](https://github.com/opencobra/cobratoolbox) 3.1+
-- [RAVEN Toolbox](https://github.com/SysBioChalmers/RAVEN) 2.9.2+
-- [Gurobi Optimizer](https://www.gurobi.com/) (Or other MATLAB-supported solvers)
+## Supported inputs and outputs
 
-## Construct ecModel from conventional GEM
+### Input model types
 
-The construction of an enzyme-constrained metabolic model (ecModel) from a conventional genome-scale metabolic model (GEM) can be efficiently accomplished using the ECOMAP framework. This process involves the integration of enzyme capacity constraints, primarily through the incorporation of ***k*<sub>cat</sub> values** and **total protein constraints**, to improve the predictive accuracy of metabolic fluxes. Here we take `iML1515` as an example to build its ecModel:
+`loadModel(filename, modeltype, modelDir, parameters)` accepts the following `modeltype` values:
 
-1. Load the traditional COBRA model through the ``loadModel`` function
+- `TRADITION`: conventional GEM
+- `ECOMAP`: ECOMAP ecModel
+- `SMOMENT`: sMOMENT model
+- `ECMPY`: ECMpy model
+- `GECKO`: GECKO model
 
-    ```
-    Path = 'Select a path to store the model and related information';
-    filename = 'iML1515.xml';
-    fullFilePath = fullfile(Path, filename);
-    model = loadModel(fullFilePath, 'COBRA');
-    ```
-2. Initialization parameters(``'ptot'`` represents the total protein content[g/gDW], ``'f'`` represents mass fraction of enzymes, ``'sigma'`` represents average enzyme saturation factor.)
+Model-type matching is case-insensitive. The current loader supports `.xml`, `.json`, `.yml`, and `.yaml`; it does not read `.mat` files.
 
-    ```
-    model = Parameterization(model, 'organism', 'Escherichia coli', ...
-                                    'taxonomicid', 83333, ...
-                                    'keggid', 'eco', ...
-                                    'uniprottype', 'proteome', ...
-                                    'uniprotid', 'UP000000625', ...
-                                    'ptot', 0.55, ...
-                                    'f', 0.55, ...
-                                    'sigma', 0.5);
-    ```
-3. Converted to ecModel structure (Two types: `'complex'` and `'simple'`)
+### ecModel topologies
 
-    ```
-    ecModel = convertEcModel(model, 'complex');
-    ```
+`convertecModel(model, ecModeltype, parameters)` supports:
 
-4. Fill the ecModel with protein `uniprot_id`, `sequences`, and `relative molecular mass`
+| Topology | Representation |
+| --- | --- |
+| `basic` | Irreversible reaction splitting and total-protein-pool bookkeeping |
+| `isozyme` | The basic representation with network-level isozyme expansion |
+| `integrated` | Enzyme pseudo-metabolites, enzyme-usage reactions, and the integrated coupling structure |
 
-    ```
-    ecModel = fillEnzymeInformation(ecModel);
-    ```
+For conventional GEM conversion, `convertecModel` expects `model.type == 'TRADITION'`.
 
-5. Initially retrieve enzyme ***k*<sub>cat</sub>** through the `BRENDA` database
+## Dependencies
 
-    ```
-    ecModel = getkcatfromDatabase(ecModel);
-    ```
-    
-6. Get metabolite SMILES format
+- Run `setup` from the repository root before using the module.
+- RAVEN Toolbox, COBRA Toolbox, and a functional solver must be available on the MATLAB path.
+- UniProt, Complex Portal, PubChem, ChEBI, and MetaNetX retrieval requires network access unless a local cache is available.
+- CatPred, DLKcat, and UniKP have independent Docker, model-asset, and Python requirements under `scripts/external_kcat_prediction/`.
 
-    ```
-    [ecModel, noSMILES] = findMetSmiles(ecModel)
-    ```
- 
-7. Run DLKcat to predict vacant ***k*<sub>cat</sub>** values
-   
-    ```
-    runDLKcat();
-    ```
+## Recommended workflow
 
-## Import ecModel developed by alternative methodologies
+### 1. Load project parameters
 
-1. Load ecModel through the loadModel function
-    ```
-    Path = 'Select a path to store the model and related information';
-    filename = 'ecYeastGEM.yml';
-    fullFilePath = fullfile(Path, filename);
-    model = loadModel(fullFilePath, 'GECKO');
-    ```
-2. Initialization parameters
-    ```
-    model = Parameterization(model, 'organism', 'Escherichia coli', ...
-                                    'taxonomicid', 83333, ...
-                                    'keggid', 'eco', ...
-                                    'uniprottype', 'proteome', ...
-                                    'uniprotid', 'UP000000625', ...
-                                    'ptot', 0.55, ...
-                                    'f', 0.55, ...
-                                    'sigma', 0.5);
-    ```
+```matlab
+root = fileparts(which('setup'));
+manager = fullfile(root, 'projects', 'eciML1515', ...
+    'eciML1515ParameterManagement.m');
+params = ParameterManager.getParams(manager);
+
+% Reconstruct host-specific paths after moving or cloning the project.
+params.projectDir        = fullfile(root, 'projects', 'eciML1515');
+params.path              = params.projectDir;
+params.projectJson       = fullfile(params.projectDir, 'project.json');
+params.parameterManager  = manager;
+params.modelsDir         = fullfile(params.projectDir, 'models');
+params.reconstructionDir = fullfile(params.projectDir, 'reconstruction');
+params.analysisDir       = fullfile(params.projectDir, 'analysis');
+```
+
+At minimum, verify the following parameters:
+
+- `InitialModel` and `modeltype`
+- `sigma`, `Ptot`, and `f`
+- `org_name` and `taxonomicID`
+- `uniprot.type`, `uniprot.ID`, `uniprot.geneIDfield`, and `uniprot.reviewed`
+- `c_source` and `bioRxn`
+
+### 2. Import and normalize the GEM
+
+```matlab
+gem = loadModel(params.InitialModel, params.modeltype, ...
+    params.modelsDir, params);
+```
+
+The loader creates the common model fields, MIRIAM containers, and a model identifier. A relative filename is resolved against `modelsDir`.
+
+### 3. Construct ecModel topologies
+
+```matlab
+ecBasic = convertecModel(gem, 'basic', params);
+ecIso   = convertecModel(gem, 'isozyme', params);
+ecInt   = convertecModel(gem, 'integrated', params);
+```
+
+During conversion, the implementation identifies pure intercompartmental transport reactions, excludes them from enzyme constraints, reads or downloads `reconstruction/uniprot.tsv`, and constructs the `enzymeConstraints` structure.
+
+### 4. Add annotations
+
+Use the following entry points as required by the project:
+
+| Function | Purpose | Principal local artifact |
+| --- | --- | --- |
+| `getECnumber` | Map EC numbers from UniProt annotations | `reconstruction/uniprot.tsv` |
+| `getComplexdata` | Retrieve and cache Complex Portal records | `reconstruction/ComplexPortal.json` |
+| `applyComplexdata` | Apply curated or proposed complex composition to the model | Updated model structure |
+| `addMetMetaNetXID` | Add MetaNetX metabolite cross-references | Updated metabolite annotations |
+| `getMetinfo` | Add SMILES and InChIKey values from local and remote sources | `reconstruction/metInfo.tsv` |
+
+`applyComplexdata` requires `uniprot.tsv` in `parameters.reconstructionDir`. Remote services may impose rate limits or return incomplete records; retain and examine the unmatched outputs returned by the annotation routines.
+
+### 5. Predict and reconcile kcat values
+
+Principal entry points are:
+
+| Function | Purpose |
+| --- | --- |
+| `writeInputFile` | Generate sequence and substrate inputs for external predictors |
+| `getPrediction` | Read results from a selected deep-learning predictor |
+| `dbKcatMatch` | Align predictions with BRENDA/SABIO data |
+| `fuzzyKcatMatch` | Match by EC number, substrate, organism, and phylogenetic distance |
+| `completeKcatMatch` | Aggregate matches from multiple predictors and databases |
+| `fillCustomKcats` | Apply manually curated values from `kcatData/customKcats.csv` |
+| `fillMissingKcatWithMedian` | Impute missing values with median estimates |
+| `mergeKcats` | Reconcile sources before values are written to the model |
+
+Prediction CSV files are normally stored under `reconstruction/kcatData/`. `getPrediction` reads generated results; it does not install or train the external prediction models.
+
+### 6. Save model artifacts
+
+Use `scripts/utilities/saveModel.m` to export model structures. Store the three topologies in the project `models/` directory and use names recognized by the web project-state scanner:
+
+```text
+<project>-basic.mat
+<project>-isozyme.mat
+<project>-integrated.mat
+```
+
+## Web reconstruction sequence
+
+The web project page infers reconstruction status from the following sequence and its artifacts:
+
+```text
+initialize → loadGem → convert → annotate → predictKcat
+           → compareKcat → mergeKcat → growthSave
+```
+
+The corresponding bridges are:
+
+| Stage | Bridge |
+| --- | --- |
+| Initialization and import | `mdpInitProject`, `mdpLoadModel` |
+| Conversion | `mdpConvertecModel` |
+| Annotation | `mdpAnnotate` |
+| Prediction | `mdpDlPredict` |
+| Comparison and merging | `mdpKcatCompare`, `mdpKcatMerge` |
+| Growth validation | `mdpGrowthPredict` |
+
+Bridge model identifiers are registered in the current MATLAB Engine process. Models must be reloaded after the backend is restarted.
+
+## Principal files
+
+```text
+Reconstruction/
+├── loadModel.m                    # Model import and normalization
+├── convertecModel.m               # GEM-to-ecModel topology construction
+├── buildEnzConstrRxnSet.m         # Enzyme-constrained reaction selection
+├── getECnumber.m                  # EC-number annotation
+├── getMetinfo.m                   # Metabolite annotation
+├── getComplexdata.m               # Complex-data retrieval and caching
+├── applyComplexdata.m             # Complex composition integration
+├── writeInputFile.m               # Predictor input generation
+├── getPrediction.m                # Prediction-result import
+├── dbKcatMatch.m                  # Database matching
+├── completeKcatMatch.m            # Multi-source match aggregation
+├── fillCustomKcats.m              # Curated kcat integration
+└── mergeKcats.m                   # kcat reconciliation
+```
+
+## Troubleshooting
+
+### `ParameterManager is not set`
+
+Pass the absolute project parameter-manager path to `ParameterManager.getParams`, or pass a complete `params` structure explicitly to each function.
+
+### `Unsupported file extension: .mat`
+
+This is the expected behavior of the reconstruction loader. Use an XML, JSON, or YAML source model. If the MATLAB variable structure is already known, load a `.mat` file with MATLAB `load` and use only downstream routines compatible with that structure.
+
+### `uniprot.tsv` or `ComplexPortal.json` cannot be found
+
+Confirm that `params.reconstructionDir` identifies the active project `reconstruction/` directory. Initial retrieval requires network access; retained files can serve as offline caches.
+
+### Conversion produces no enzyme-constrained reactions
+
+Verify that the GEM contains valid `genes`, `grRules` or `rules`, reaction–gene associations, and EC/UniProt annotations. Pure transport reactions are deliberately excluded.
+
+### kcat results are not merged
+
+Check predictor names, CSV columns, reaction and protein identifiers, and the `reconstruction/kcatData/` path. Complete the match analysis before calling `completeKcatMatch` and `mergeKcats`; curated values should be placed in `customKcats.csv`.

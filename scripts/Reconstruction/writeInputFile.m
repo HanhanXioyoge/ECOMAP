@@ -11,7 +11,7 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
 %   model              : COBRA/GECKO-like model with model.enzymeConstraints.* fields
 %   DeepLearningModel  : char/string/array/cellstr, subset of {'DLKcat','UniKP','CatPred'}
 %   parameters         : struct with fields
-%       - dataDir          : output folder for CSVs (required)
+%       - reconstructionDir          : output folder for CSVs (required)
 %       - onlyWithSmiles   : logical (default true) keep only rows with SMILES
 %       - org_name         : organism name to stamp in the table (default 'NA')
 %
@@ -30,10 +30,10 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
             error('ParameterManager is not set.');
         end
     end
-    if ~isfield(parameters, 'dataDir') || isempty(parameters.dataDir)
-        error('parameters.dataDir is required.');
+    if ~isfield(parameters, 'reconstructionDir') || isempty(parameters.reconstructionDir)
+        error('parameters.reconstructionDir is required.');
     end
-    dataDir = parameters.dataDir;
+    reconstructionDir = parameters.reconstructionDir;
 
     if ~isfield(parameters, 'onlyWithSmiles') || isempty(parameters.onlyWithSmiles)
         parameters.onlyWithSmiles = true;
@@ -242,7 +242,7 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
             case 'DLKCAT'
                 TL = T(:, {'ReactionName', 'Organism', 'GeneID', 'ProteinID', ...
                     'EC Number', 'MetaNetXID', 'Substrate', 'SMILES', 'InChIKey', 'sequence'});
-                outFile = fullfile(dataDir, 'kcatData', 'DLKcat_input.csv');
+                outFile = fullfile(reconstructionDir, 'kcatData', 'DLKcat_input.csv');
                 writetable(TL, outFile);
                 fprintf('DLKcat input written to: %s\n', outFile);
 
@@ -250,7 +250,7 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
                 % If UniKP does not need organism, drop it; keep EC if available
                 TU = T(:, {'ReactionName', 'Organism', 'GeneID', 'ProteinID', ...
                     'EC Number', 'MetaNetXID','Substrate', 'SMILES', 'InChIKey', 'sequence'});
-                outFile = fullfile(dataDir, 'kcatData', 'UniKP_input.csv');
+                outFile = fullfile(reconstructionDir, 'kcatData', 'UniKP_input.csv');
                 writetable(TU, outFile);
                 fprintf('UniKP input written to: %s\n', outFile);
 
@@ -258,7 +258,7 @@ function writtenTable = writeInputFile(model, DeepLearningModel, parameters)
                 % CatPred requires protein structure info
                 TC = T(:, {'ReactionName', 'Organism', 'GeneID', 'ProteinID', ...
                     'EC Number', 'MetaNetXID','Substrate', 'SMILES', 'InChIKey', 'sequence', 'pdbpath'});
-                outFile = fullfile(dataDir, 'kcatData', 'CatPred_input.csv');
+                outFile = fullfile(reconstructionDir, 'kcatData', 'CatPred_input.csv');
                 writetable(TC, outFile);
                 fprintf('CatPred input written to: %s\n', outFile);
         end

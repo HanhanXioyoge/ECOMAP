@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ECOMAP</title>
+<link rel="stylesheet" href="styles.css?v=16">
+</head>
+<body class="app">
+<header class="topnav" role="banner">
+  <button id="brand-home" class="topnav-brand" type="button" aria-label="ECOMAP home">
+    <img src="assets/logo.svg" alt="" class="brand-mark" width="96" height="24">
+  </button>
+  <nav class="topnav-items" role="navigation" aria-label="Primary">
+    <a class="topnav-item is-active" data-track="" id="nav-home" href="#"><span data-i18n="nav_home">Home</span></a>
+    <a class="topnav-item" data-track="projects" id="nav-projects" href="#projects"><span data-i18n="nav_projects">Projects</span></a>
+    <div class="topnav-project-menu" id="nav-current-project-wrap">
+      <a class="topnav-project-link" id="nav-current-project" href="#projects"><span data-i18n="nav_current_project">Current Project</span></a>
+      <ul class="topnav-dropdown" role="menu" aria-label="Current project">
+        <li role="none"><a role="menuitem" href="#project-current" data-project-view="overview" data-i18n="project_nav_overview">Overview</a></li>
+        <li role="none"><a role="menuitem" href="#project-current/reconstruction" data-project-view="reconstruction" data-i18n="nav_recon">Reconstruction</a></li>
+        <li role="none"><a role="menuitem" href="#project-current/calibration" data-project-view="calibration" data-i18n="nav_calib">Calibration</a></li>
+        <li role="none"><a role="menuitem" href="#project-current/analysis" data-project-view="analysis" data-i18n="nav_analysis">Analysis</a></li>
+        <li role="none"><a role="menuitem" href="#project-current/design" data-project-view="design" data-i18n="nav_design">Design</a></li>
+        <li role="none"><a role="menuitem" href="#project-current/parameters" data-project-view="parameters" data-i18n="project_nav_parameters">Parameters</a></li>
+        <li role="none"><a role="menuitem" href="#project-current/files" data-project-view="files" data-i18n="project_nav_files">Files</a></li>
+        <li role="none"><a role="menuitem" href="#project-current/runs" data-project-view="runs" data-i18n="project_nav_runs">Runs</a></li>
+      </ul>
+    </div>
+    <a class="topnav-item" data-track="docs" id="nav-docs" href="#docs"><span data-i18n="nav_docs">Docs</span></a>
+    <a class="topnav-item" data-track="tutorial" id="nav-tutorial" href="#tutorial"><span data-i18n="nav_tutorial">Tutorial</span></a>
+  </nav>
+  <button class="topnav-burger" id="topnav-burger" type="button"
+          aria-label="Toggle menu" aria-expanded="false" aria-controls="topnav-drawer">Menu</button>
+  <div class="topnav-tail">
+    <div class="lang-switch" role="group" aria-label="Language">
+      <button id="lang-en" type="button" class="lang-switch__btn lang-switch__btn--mono is-active" aria-pressed="true" data-i18n="nav_lang_en">EN</button>
+      <button id="lang-zh" type="button" class="lang-switch__btn" aria-pressed="false" data-i18n="nav_lang_zh">ZH</button>
+    </div>
+    <a class="topnav-help" href="https://github.com/" target="_blank" rel="noopener noreferrer" data-i18n="nav_help">Help</a>
+  </div>
+</header>
+
+<div class="topnav-drawer" id="topnav-drawer" role="dialog" aria-label="Navigation"></div>
+
+<template id="home-view-template">
+  <section class="home">
+    <section class="hero">
+      <div class="container">
+        <div class="hero__eyebrow" data-i18n="home_hero_eyebrow">
+          ECOMAP &middot; Constrained Optimization of Metabolic Models &amp; Analysis Pipeline
+        </div>
+        <h1 class="hero__title">
+          <span data-i18n="home_hero_title_l1">Build enzyme-constrained</span>
+          <br>
+          <span data-i18n="home_hero_title_l2">metabolic models.</span>
+        </h1>
+        <p class="hero__sub">
+          <span data-i18n="home_hero_sub_l1">From genome-scale models</span>
+          <br>
+          <span data-i18n="home_hero_sub_l2">to predictive ecGEMs.</span>
+        </p>
+        <div class="hero__cta">
+          <a class="btn btn-primary" id="home-cta-new" href="#projects" data-i18n="home_hero_cta_start">New project</a>
+          <a class="btn btn-secondary" id="home-cta-projects" href="#projects" data-i18n="home_hero_cta_projects">Open projects</a>
+          <a class="btn btn-secondary" id="home-cta-docs" href="#docs" data-i18n="home_hero_cta_docs">Read the docs</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-modules">
+      <div class="container">
+        <div class="section-eyebrow" data-i18n="home_modules_eyebrow">// MODULES</div>
+        <h2 class="section-title" data-i18n="home_modules_title">Four tracks, one pipeline.</h2>
+        <p class="section-hint" data-i18n="home_modules_hint">From a GEM to an engineered strain. Create a project, then run the modules with one shared parameter set.</p>
+
+        <div class="module-grid">
+          <article class="module">
+            <svg class="module__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <polygon points="12,2 22,22 2,22" fill="currentColor"/>
+            </svg>
+            <div class="module__eyebrow">RECONSTRUCTION</div>
+            <h3 class="module__title" data-i18n="home_card_recon_title">Build ecGEMs from GEMs</h3>
+            <p class="module__desc" data-i18n="home_card_recon_desc">Turn a genome-scale model into an ecGEM.</p>
+            <div class="module__actions">
+              <a class="module__cta module__cta--docs" href="#docs" data-i18n="home_card_cta">Read docs -&gt;</a>
+              <a class="module__cta module__cta--module" href="#projects" data-i18n="home_card_open_projects">Open projects -&gt;</a>
+            </div>
+          </article>
+
+          <article class="module">
+            <svg class="module__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" fill="currentColor"/>
+            </svg>
+            <div class="module__eyebrow">CALIBRATION</div>
+            <h3 class="module__title" data-i18n="home_card_calib_title">Calibrate kcat &amp; sigma</h3>
+            <p class="module__desc" data-i18n="home_card_calib_desc">Fit kcat and sigma against growth + proteomics.</p>
+            <div class="module__actions">
+              <a class="module__cta module__cta--docs" href="#docs" data-i18n="home_card_cta">Read docs -&gt;</a>
+              <a class="module__cta module__cta--module" href="#projects" data-i18n="home_card_open_projects">Open projects -&gt;</a>
+            </div>
+          </article>
+
+          <article class="module">
+            <svg class="module__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="3" width="8" height="8" fill="currentColor"/>
+              <rect x="13" y="3" width="8" height="8" fill="currentColor"/>
+              <rect x="3" y="13" width="8" height="8" fill="currentColor"/>
+              <rect x="13" y="13" width="8" height="8" fill="currentColor"/>
+            </svg>
+            <div class="module__eyebrow">ANALYSIS</div>
+            <h3 class="module__title" data-i18n="home_card_analysis_title">Run ecFVA &amp; knockouts</h3>
+            <p class="module__desc" data-i18n="home_card_analysis_desc">Explore flux ranges, knockouts, allocation.</p>
+            <div class="module__actions">
+              <a class="module__cta module__cta--docs" href="#docs" data-i18n="home_card_cta">Read docs -&gt;</a>
+              <a class="module__cta module__cta--module" href="#projects" data-i18n="home_card_open_projects">Open projects -&gt;</a>
+            </div>
+          </article>
+
+          <article class="module">
+            <svg class="module__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <polygon points="2,2 22,12 2,22" fill="currentColor"/>
+            </svg>
+            <div class="module__eyebrow">DESIGN</div>
+            <h3 class="module__title" data-i18n="home_card_design_title">Find target interventions</h3>
+            <p class="module__desc" data-i18n="home_card_design_desc">FSEOF &middot; OptKnock &middot; OptForce strain picks.</p>
+            <div class="module__actions">
+              <a class="module__cta module__cta--docs" href="#docs" data-i18n="home_card_cta">Read docs -&gt;</a>
+              <a class="module__cta module__cta--module" href="#projects" data-i18n="home_card_open_projects">Open projects -&gt;</a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-eyebrow" data-i18n="home_recent_eyebrow">// RECENT PROJECTS</div>
+        <h2 class="section-title" data-i18n="home_recent_title">Recent projects</h2>
+        <p class="section-hint" data-i18n="home_recent_hint">Last 3 projects. Click to open a project.</p>
+        <div class="recent" id="recent-projects">
+          <div class="recent__head">
+            <span data-i18n="home_recent_col_id">PROJECT</span>
+            <span data-i18n="home_recent_col_desc">Model</span>
+            <span data-i18n="home_recent_col_time">Updated</span>
+            <span data-i18n="home_recent_col_algo">Stage</span>
+            <span data-i18n="home_recent_col_status">Status</span>
+          </div>
+          <div id="recent-projects-list">
+            <p class="recent__empty" data-i18n="home_recent_empty">No projects yet.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="app-footer" role="contentinfo">
+      <div class="container">
+        <small data-i18n="footer_brand">ECOMAP &middot; MIT License &middot; GitHub</small>
+      </div>
+    </footer>
+  </section>
+</template>
+
+<main id="main" class="app-main" role="main">
+  <!-- home-view content is cloned here by mountHome() from #home-view-template -->
+</main>
+<script type="module" src="app.js?v=15"></script>
+</body>
+</html>

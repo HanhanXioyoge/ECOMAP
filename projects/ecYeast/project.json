@@ -1,0 +1,29 @@
+{
+  "projectId": "ecYeast",
+  "name": "ecYeast",
+  "projectName": "ecYeast",
+  "projectDir": "C:\\chenqilin\\projects\\ECOMAP\\projects\\ecYeast",
+  "modelId": "",
+  "modelType": "GEM",
+  "organism": "",
+  "params": {
+    "projectName": "ecYeast",
+    "InitialModel": "",
+    "modeltype": "Tradition"
+  },
+  "stage": "Ready for Reconstruction",
+  "status": "ready",
+  "createdAt": "2026-08-05T00:59:23.578896+00:00",
+  "updatedAt": "2026-08-05T00:59:23.578896+00:00",
+  "parameterManager": "ecYeastParameterManagement.m",
+  "parameterManagerFunction": "ecYeastParameterManagement",
+  "runs": [],
+  "files": [],
+  "directories": {
+    "models": "C:\\chenqilin\\projects\\ECOMAP\\projects\\ecYeast\\models",
+    "reconstruction": "C:\\chenqilin\\projects\\ECOMAP\\projects\\ecYeast\\reconstruction",
+    "calibration": "C:\\chenqilin\\projects\\ECOMAP\\projects\\ecYeast\\calibration",
+    "analysis": "C:\\chenqilin\\projects\\ECOMAP\\projects\\ecYeast\\analysis",
+    "design": "C:\\chenqilin\\projects\\ECOMAP\\projects\\ecYeast\\design"
+  }
+}

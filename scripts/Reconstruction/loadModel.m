@@ -5,7 +5,7 @@ function model = loadModel(filename, modeltype, modelDir, parameters)
 %   Inputs (all optional):
 %     - filename   : filename or path to model file. If empty, parameters.InitialModel is used.
 %     - modeltype  : model type string (ECOMAP, TRADITION, SMOMENT, ECMPY, GECKO)
-%     - modelDir   : directory to resolve relative filenames (fallback: parameters.modelDir or pwd)
+%     - modelDir   : directory to resolve relative filenames (fallback: parameters.modelsDir or pwd)
 %     - parameters : struct returned by ParameterManager.getParams() (if omitted, it will be fetched)
 %
 %   The function supports at least .xml, .json, .yml and .yaml extensions. It will
@@ -22,8 +22,8 @@ function model = loadModel(filename, modeltype, modelDir, parameters)
 
     % 2) Resolve modelDir
     if nargin < 3 || isempty(modelDir)
-        if isfield(parameters, 'modelDir') && ~isempty(parameters.modelDir)
-            modelDir = parameters.modelDir;
+        if isfield(parameters, 'modelsDir') && ~isempty(parameters.modelsDir)
+            modelDir = parameters.modelsDir;
         else
             error('The modelDir is not specified');
         end

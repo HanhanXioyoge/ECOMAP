@@ -1,0 +1,61 @@
+KO_ID,KO_Name,Subsystems,GrRule
+FUM,Fumarase,,b1612 or b4122 or b1611
+FUMtex,Fumarate transport via diffusion (extracellular to periplasm),,b0241 or b0929 or b1377 or b2215
+
+CBMKr,Carbamate kinase,,b0521
+H2Otpp,H2O transport via diffusion (periplasm),,s0001 or b0875
+
+FUM,Fumarase,,b1612 or b4122 or b1611
+I2FE2SR,ISC [2Fe-2S] regeneration,,b2529 and b2530
+
+CBMKr,Carbamate kinase,,b0521
+H2Otex,H2O transport via diffusion (extracellular to periplasm),,b3875 or s0001 or b1319 or b0957 or b2215 or b0241 or b1377 or b0929
+
+FRD3,Fumarate reductase,,b4152 and b4151 and b4153 and b4154
+4HTHRA,4-hydroxy-L-threonine aldolase,,b0870
+
+TALA,Transaldolase,,b0008 or b2464
+H2Otpp,H2O transport via diffusion (periplasm),,s0001 or b0875
+
+PSERT,Phosphoserine transaminase,,b0907
+S2FE2ST,SUF [2Fe-2S] Transfer,,b1682 and b1681 and b1684 and b1683
+
+AKGDH,2-Oxogluterate dehydrogenase,,b0727 and b0116 and b0726
+H2Otpp,H2O transport via diffusion (periplasm),,s0001 or b0875
+
+TALA,Transaldolase,,b0008 or b2464
+H2Otex,H2O transport via diffusion (extracellular to periplasm),,b3875 or s0001 or b1319 or b0957 or b2215 or b0241 or b1377 or b0929
+
+SCYSDS,SUF Cysteine desulfuration,,b1680 and b1679
+I2FE2SR,ISC [2Fe-2S] regeneration,,b2529 and b2530
+
+HACD5,3-hydroxyacyl-CoA dehydrogenase (3-oxododecanoyl-CoA),,b3846 or b2341
+H2Otex,H2O transport via diffusion (extracellular to periplasm),,b3875 or s0001 or b1319 or b0957 or b2215 or b0241 or b1377 or b0929
+
+H2Otpp,H2O transport via diffusion (periplasm),,s0001 or b0875
+TPI,Triose-phosphate isomerase,,b3919
+
+AKGDH,2-Oxogluterate dehydrogenase,,b0727 and b0116 and b0726
+H2Otex,H2O transport via diffusion (extracellular to periplasm),,b3875 or s0001 or b1319 or b0957 or b2215 or b0241 or b1377 or b0929
+
+H2Otex,H2O transport via diffusion (extracellular to periplasm),,b3875 or s0001 or b1319 or b0957 or b2215 or b0241 or b1377 or b0929
+TPI,Triose-phosphate isomerase,,b3919
+
+PGI,Glucose-6-phosphate isomerase,,b4025
+H2Otpp,H2O transport via diffusion (periplasm),,s0001 or b0875
+
+HEPT1,Heptosyltransferase I (LPS core synthesis),,b3621
+DHBS,"2,3-dihydroxybenzoate adenylate synthase",,b0594
+
+PGI,Glucose-6-phosphate isomerase,,b4025
+H2Otex,H2O transport via diffusion (extracellular to periplasm),,b3875 or s0001 or b1319 or b0957 or b2215 or b0241 or b1377 or b0929
+
+SPODM,Superoxide dismutase,,b3908 or b1656
+FE3tex,Iron (III) transport via diffusion (extracellular to periplasm),,b0241 or b0929 or b1377 or b2215
+
+FUM,Fumarase,,b1612 or b4122 or b1611
+ASPtpp,L-aspartate uptake via facillitated diffusion,,b1206
+
+H2Otpp,H2O transport via diffusion (periplasm),,s0001 or b0875
+GLCptspp,D-glucose transport via PEP:Pyr PTS (periplasm),,(b1621 and b2415 and b2417 and b2416) or (b1101 and b2416 and b2415 and b2417) or (b1819 and b2415 and b1818 and b1817 and b2416)
+

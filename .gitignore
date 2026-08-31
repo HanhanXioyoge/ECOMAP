@@ -1,3 +1,34 @@
+# ECOMAP 2.0 merge additions
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.vite/
+node_modules/
+scripts/GUI/
+scripts/web/server/.venv/
+scripts/web/server/.ecomap-python
+scripts/web/server/.uploads/
+scripts/web/server/_uploads/
+scripts/web/server/__pycache__/
+tests/python/__pycache__/
+tests/integration/__pycache__/
+tests/web/node_modules/
+tests/benchmarks/
+tests/_smoke_project/
+.web.log
+.web.pid
+.ecomap-rebuild-failed
+2026-*.txt
+tests/manual/_outputs/
+
+# OKO+ UniProt cache (per-project)
+projects/**/.cache/
+
+# Local caches (never publish)
+.cache/
+
+# Original
 scripts\external_kcat_prediction\CatPred\data
 scripts\external_kcat_prediction\CatPred\esm2_t33_650M_UR50D.pt
 scripts\external_kcat_prediction\UniKP\prot_t5_xl_uniref50

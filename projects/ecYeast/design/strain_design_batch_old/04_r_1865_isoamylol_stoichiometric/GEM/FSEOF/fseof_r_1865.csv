@@ -1,0 +1,17 @@
+Slope,rowID,Enzyme_ID,Enzyme_Name,Subsystems,Direction,GrRule
+0.95976,19,r_0023,2-isopropylmalate hydratase,,-1,YGL009C
+0.95976,25,r_0029,2-oxo-4-methyl-3-carboxypentanoate decarboxylation,,0,
+0.95976,44,r_0060,3-isopropylmalate dehydratase,,-1,YGL009C
+0.95976,45,r_0061,3-isopropylmalate dehydrogenase,,0,YCL018W
+1,55,r_0072,4-methyl-2-oxopentanoate decarboxylase,,0,YDL080C
+0.92382,79,r_0096,acetohydroxy acid isomeroreductase,,0,YLR355C
+0.92382,80,r_0097,acetolactate synthase,,0,(YCL009C and YMR108W) or YMR108W
+1,158,r_0179,"aldehyde dehydrogenase (isoamyl alcohol, NAD)",,0,YBR145W or YDL168W or YOL086C
+0.92382,309,r_0352,"dihydroxy-acid dehydratase (2,3-dihydroxy-3-methylbutanoate)",,0,YJR016C
+0.93956,323,r_0366,enolase,,1,YPL281C or YGR254W or YHR174W or YMR323W or YOR393W
+0.84723,380,r_0486,glyceraldehyde-3-phosphate dehydrogenase,,1,YGR192C or YJL052W or YJR009C
+0.84723,688,r_0892,phosphoglycerate kinase,,1,YCR012W
+0.93956,689,r_0893,phosphoglycerate mutase,,1,YOR283W or YKL152C
+1.0128,733,r_0962,pyruvate kinase,,0,YAL038W or YOR347C
+1,1305,r_1863,isoamyl alcohol transport,,1,
+1,1307,r_1865,isoamylol exchange,,0,

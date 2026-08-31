@@ -4,10 +4,10 @@ function complexInfo = getComplexdata(taxonomicID, parameters)
 %   complexInfo = getComplexdata(taxonomicID, parameters)
 % DESCRIPTION
 %   If a local cache file 'ComplexPortal.json' does not exist under
-%   parameters.dataDir, this function queries the EBI Complex Portal web
+%   parameters.reconstructionDir, this function queries the EBI Complex Portal web
 %   service (intact/complex-ws) for complexes matching the given
 %   taxonomicID, builds a local database and writes it to
-%   parameters.dataDir/ComplexPortal.json.
+%   parameters.reconstructionDir/ComplexPortal.json.
 %
 %   If the cache file already exists, the function reads it and returns
 %   complexInfo as a struct array with the following fields:
@@ -21,7 +21,7 @@ function complexInfo = getComplexdata(taxonomicID, parameters)
 %
 % INPUTS
 %   taxonomicID : numeric or empty (if empty, parameters.taxonomicID is used)
-%   parameters  : struct, must contain .dataDir and .taxonomicID (if not passed,
+%   parameters  : struct, must contain .reconstructionDir and .taxonomicID (if not passed,
 %                 ParameterManager.getParams() is used)
 %
 % OUTPUT
@@ -41,7 +41,7 @@ function complexInfo = getComplexdata(taxonomicID, parameters)
         taxonomicID = parameters.taxonomicID;
     end
 
-    complexdata_Path = fullfile(parameters.dataDir,'ComplexPortal.json');
+    complexdata_Path = fullfile(parameters.reconstructionDir,'ComplexPortal.json');
 
     if ~isfile(complexdata_Path)
         if isempty(taxonomicID)

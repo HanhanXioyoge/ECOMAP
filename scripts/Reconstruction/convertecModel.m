@@ -9,7 +9,7 @@ function ecModel = convertecModel(model, ecModeltype, parameters)
 %                  - basic     : irreversible split; total protein pool bookkeeping
 %                  - isozyme   : + isozyme expansion on network
 %                  - integrated: + add enzyme pseudo-mets/usage reactions
-%   parameters   : struct with fields sigma, Ptot, f, dataDir, uniprot, etc.
+%   parameters   : struct with fields sigma, Ptot, f, reconstructionDir, uniprot, etc.
 %
 % Key behavior requested:
 %   - Identify "pure compartment switch of the SAME chemical entity" reactions:
@@ -198,9 +198,9 @@ function ecModel = convertecModel(model, ecModeltype, parameters)
     end
 
     % -------- Step 7: Map retained genes to UniProt (first-match, no scoring) ------
-    uniprot_Path = fullfile(parameters.dataDir, 'uniprot.tsv');
+    uniprot_Path = fullfile(parameters.reconstructionDir, 'uniprot.tsv');
     if ~isfile(uniprot_Path)
-        DownloadUniProtData(parameters.uniprot, parameters.dataDir);
+        DownloadUniProtData(parameters.uniprot, parameters.reconstructionDir);
     end
     dbStruct = ParseUniProtData(uniprot_Path);  % expects .aliasMap, .ID, .MW, .seq, etc.
     

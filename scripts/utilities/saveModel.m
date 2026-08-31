@@ -3,7 +3,7 @@ function savePath = saveModel(modelVar, fileName, parameters)
 %
 % USAGE
 %   savePath = saveModel(ecModel, 'eciML1515.mat', parameters)
-%   % Saves ecModel into <parameters.modelDir>\eciML1515.mat
+%   % Saves ecModel into <parameters.modelsDir>\eciML1515.mat
 %   % Inside the MAT file, the variable name will be "eciML1515".
 %
 % INPUTS
@@ -11,7 +11,7 @@ function savePath = saveModel(modelVar, fileName, parameters)
 %   fileName   : target file name, may include ".mat" and optional subfolders
 %                e.g. 'eciML1515.mat' or 'subdir/eciML1515.mat'
 %   parameters : struct; if empty/missing, uses ParameterManager.getParams()
-%                must contain parameters.modelDir (base target directory)
+%                must contain parameters.modelsDir (base target directory)
 %
 % OUTPUT
 %   savePath   : absolute path to the saved .mat file
@@ -19,8 +19,8 @@ function savePath = saveModel(modelVar, fileName, parameters)
 % BEHAVIOR
 %   - If fileName has no extension, '.mat' is appended automatically.
 %   - If fileName contains subfolders but is NOT absolute, they are resolved
-%     under parameters.modelDir (e.g., modelDir/sub1/sub2/file.mat).
-%   - If fileName is an ABSOLUTE path, parameters.modelDir is ignored.
+%     under parameters.modelsDir (e.g., modelsDir/sub1/sub2/file.mat).
+%   - If fileName is an ABSOLUTE path, parameters.modelsDir is ignored.
 %   - The variable stored inside the MAT is named after the base file name.
 %   - Variables >= ~2GB are saved with -v7.3 automatically.
 
@@ -29,10 +29,10 @@ function savePath = saveModel(modelVar, fileName, parameters)
         parameters = ParameterManager.getParams();
         if isempty(parameters), error('ParameterManager is not set.'); end
     end
-    if ~isfield(parameters, 'modelDir') || isempty(parameters.modelDir)
-        error('parameters.modelDir is required.');
+    if ~isfield(parameters, 'modelsDir') || isempty(parameters.modelsDir)
+        error('parameters.modelsDir is required.');
     end
-    modelDir = parameters.modelDir;
+    modelsDir = parameters.modelsDir;
 
     % -------- Resolve fileName / extension --------
     if nargin < 2 || isempty(fileName)
@@ -53,15 +53,15 @@ function savePath = saveModel(modelVar, fileName, parameters)
 
     % -------- Decide save directory --------
     if isempty(p)
-        % No path provided → use modelDir
-        saveDir = modelDir;
+        % No path provided → use modelsDir
+        saveDir = modelsDir;
     else
         if isAbsolutePath(p)
-            % Absolute path provided → honor it, ignore modelDir
+            % Absolute path provided → honor it, ignore modelsDir
             saveDir = p;
         else
-            % Relative subpath → place under modelDir
-            saveDir = fullfile(modelDir, p);
+            % Relative subpath → place under modelsDir
+            saveDir = fullfile(modelsDir, p);
         end
     end
 

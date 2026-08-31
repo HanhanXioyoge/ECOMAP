@@ -1,0 +1,7 @@
+rxn_IDs	rxnNames	slope	grRules	rxn_formula
+r_1115_EXP_4	ammonia transport	0.108214212869488	YPR138C	ammonium[e] + 0.025968 prot_pool[c] => ammonium[c]
+r_2132_EXP_2	oxoglutarate/malate exchange	0.0535379711244765	YPL134C	(S)-malate[c] + 2-oxoglutarate[m] + 0.4253 prot_pool[c] => (S)-malate[m] + 2-oxoglutarate[c]
+r_1194	L-glutamate transport	0.0127895419010896	YPR021C	L-glutamate[c] + 0.49764 prot_pool[c] => L-glutamate[m]
+r_1099_EXP_1	2-oxoadipate and 2-oxoglutarate transport	0.00555954760824065	YOR222W	2-oxoadipic acid[m] + 2-oxoglutarate[c] + 0.38505 prot_pool[c] => 2-oxoadipic acid[c] + 2-oxoglutarate[m]
+r_3526_REV_EXP_2	H2O transport, cytoplasm-ER membrane (reversible)	0.00419727078102769	YPR192W	H2O[erm] + 0.21631 prot_pool[c] => H2O[c]
+r_1585_EXP_1	2-oxobutanoate transporter	0.00374327346375685	YNL065W	2-oxobutanoate[c] + 0.34421 prot_pool[c] => 2-oxobutanoate[m]

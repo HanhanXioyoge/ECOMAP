@@ -1,0 +1,10 @@
+targetRxn,metabolite,ecomapClassification,algorithm,status,elapsedSeconds,outputDir,message
+r_1549,"(R,R)-2,3-butanediol",stoichiometric,FSEOF,skipped_completed,0,C:\chenqilin\projects\ECOMAP\projects\ecYeast\design\strain_design_batch\01_r_1549_R_R_-2_3-butanediol_stoichiometric\GEM\FSEOF,
+r_1549,"(R,R)-2,3-butanediol",stoichiometric,OptKnock,disabled,0,C:\chenqilin\projects\ECOMAP\projects\ecYeast\design\strain_design_batch\01_r_1549_R_R_-2_3-butanediol_stoichiometric\GEM\OptKnock,
+r_1549,"(R,R)-2,3-butanediol",stoichiometric,OptForce,disabled,0,C:\chenqilin\projects\ECOMAP\projects\ecYeast\design\strain_design_batch\01_r_1549_R_R_-2_3-butanediol_stoichiometric\GEM\OptForce,
+r_1549,"(R,R)-2,3-butanediol",stoichiometric,ecFSEOF_integrated,skipped_completed,0,C:\chenqilin\projects\ECOMAP\projects\ecYeast\design\strain_design_batch\01_r_1549_R_R_-2_3-butanediol_stoichiometric\ecGEM\ecFSEOF_integrated,
+r_1549,"(R,R)-2,3-butanediol",stoichiometric,ecFSEOF_isozyme,skipped_completed,0,C:\chenqilin\projects\ECOMAP\projects\ecYeast\design\strain_design_batch\01_r_1549_R_R_-2_3-butanediol_stoichiometric\ecGEM\ecFSEOF_isozyme,
+r_1549,"(R,R)-2,3-butanediol",stoichiometric,ecFSEOF_basic,skipped_completed,0,C:\chenqilin\projects\ECOMAP\projects\ecYeast\design\strain_design_batch\01_r_1549_R_R_-2_3-butanediol_stoichiometric\ecGEM\ecFSEOF_basic,
+r_1549,"(R,R)-2,3-butanediol",stoichiometric,OKO,skipped_completed,0,C:\chenqilin\projects\ECOMAP\projects\ecYeast\design\strain_design_batch\01_r_1549_R_R_-2_3-butanediol_stoichiometric\ecGEM\OKO,
+r_1549,"(R,R)-2,3-butanediol",stoichiometric,OKOPlus_UniKP,skipped_completed,0,C:\chenqilin\projects\ECOMAP\projects\ecYeast\design\strain_design_batch\01_r_1549_R_R_-2_3-butanediol_stoichiometric\ecGEM\OKOPlus\UniKP,
+r_1549,"(R,R)-2,3-butanediol",stoichiometric,OKOPlus_CatPred,failed,113.0090622,C:\chenqilin\projects\ECOMAP\projects\ecYeast\design\strain_design_batch\01_r_1549_R_R_-2_3-butanediol_stoichiometric\ecGEM\OKOPlus\CatPred,OKO intervention minimization failed with status INTERRUPTED.

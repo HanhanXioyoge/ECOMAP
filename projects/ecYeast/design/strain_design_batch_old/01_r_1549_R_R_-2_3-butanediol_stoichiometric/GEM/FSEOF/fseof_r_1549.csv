@@ -1,0 +1,14 @@
+Slope,rowID,Enzyme_ID,Enzyme_Name,Subsystems,Direction,GrRule
+1,3,r_0003,"(R,R)-butanediol dehydrogenase",,-1,YAL060W
+0.63462,323,r_0366,enolase,,1,YPL281C or YGR254W or YHR174W or YMR323W or YOR393W
+0.44765,346,r_0450,fructose-bisphosphate aldolase,,1,YKL060C
+0.48176,362,r_0467,glucose-6-phosphate isomerase,,1,YBR196C
+0.57225,380,r_0486,glyceraldehyde-3-phosphate dehydrogenase,,1,YGR192C or YJL052W or YJR009C
+0.44765,682,r_0886,phosphofructokinase,,0,YGR240C and YMR205C
+0.57225,688,r_0892,phosphoglycerate kinase,,1,YCR012W
+0.63462,689,r_0893,phosphoglycerate mutase,,1,YOR283W or YKL152C
+1,731,r_0960,pyruvate decarboxylase (acetoin-forming),,0,YGR087C or YLR044C or YLR134W
+0.68406,733,r_0962,pyruvate kinase,,0,YAL038W or YOR347C
+0.33646,810,r_1054,triose-phosphate isomerase,,1,YDR050C
+1,848,r_1097,"(R,R)-butanediol transport",,1,
+1,1041,r_1549,"(R,R)-2,3-butanediol exchange",,0,

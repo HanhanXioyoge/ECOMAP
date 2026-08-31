@@ -25,14 +25,14 @@ function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, GEM, 
     if nargin < 3 || isempty(bioRxn_GEM), bioRxn_GEM = parameters.bioRxn; end
 
     bioRxn      = parameters.bioRxn;
-    basePath    = parameters.dataDir;
+    basePath    = parameters.calibrationDir;
     prot_pool   = 'prot_pool';
     c_source    = parameters.c_source;
     org_name    = parameters.org_name;
     GEM         = setParam(GEM, 'eq', c_source, 0);
 
     % Load experimental data
-    T = readtable(fullfile(basePath, 'UnconstrainedMaxGrowth.tsv'), 'FileType','text','ReadRowNames',true);
+    T = readtable(fullfile(basePath, 'data','UnconstrainedMaxGrowth.tsv'), 'FileType','text','ReadRowNames',true);
 
     % Initialize Summary Table with new result columns
     summaryTbl = T;

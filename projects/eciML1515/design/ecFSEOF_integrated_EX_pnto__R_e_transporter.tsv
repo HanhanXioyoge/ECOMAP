@@ -1,0 +1,12 @@
+rxn_IDs	rxnNames	slope	grRules	rxn_formula
+ATPS4rpp_EXP_1	ATP synthase (four protons for one ATP) (periplasm)	6.88208151773272	b3739 and b3731 and b3733 and b3735 and b3734 and b3732 and b3738 and b3736 and b3737	ADP[c] + 4 H+[p] + Phosphate[c] + 0.028946 prot_P0A6E6[c] + 0.096674 prot_P0ABB4[c] + 0.060659 prot_P0ABA6[c] + 0.10608 prot_P0ABB0[c] + 0.037137 prot_P0ABA4[c] + 0.033164 prot_P0ABA0[c] + 0.01586 prot_P68699[c] + 0.058212 prot_P0AB98[c] + 0.026187 prot_P0ABC0[c] => ATP[c] + H2O[c] + 3 H+[c]
+NADH17pp	NADH dehydrogenase (menaquinone-8 & 3 protons) (periplasm)	3.63204146718798	b2279 and b2277 and b2284 and b2282 and b2278 and b2288 and b2276 and b2287 and b2283 and b2281 and b2286 and b2280 and b2285	4 H+[c] + Menaquinone 8[c] + Nicotinamide adenine dinucleotide - reduced[c] + 0.011025 prot_P0AFF0[c] + 0.011974 prot_P0AFE8[c] + 0.014074 prot_P33607[c] + 0.0022973 prot_P0AFE4[c] + 0.0042101 prot_P0AFE0[c] + 0.0043506 prot_P0AFD6[c] + 0.0076723 prot_P0AFD4[c] + 0.021246 prot_P33602[c] + 0.010442 prot_P31979[c] + 0.0039379 prot_P0AFD1[c] + 0.014455 prot_P33599[c] + 0.0053076 prot_P0AFC7[c] + 0.0034861 prot_P0AFC3[c] => 3 H+[p] + Menaquinol 8[c] + Nicotinamide adenine dinucleotide[c]
+H2Otex	H2O transport via diffusion (extracellular to periplasm)	2.3583464650445	b3875 or b1319 or b0957 or b2215 or b0241 or b1377 or b0929	H2O[e] <=> H2O[p]
+H2Otpp	H2O transport via diffusion (periplasm)	2.35834646504449	b0875	H2O[p] <=> H2O[c]
+O2tex	Oxygen transport via diffusion (extracellular to periplasm)	1.93612618320002	b0241 or b0929 or b1377 or b2215	O2 O2[e] <=> O2 O2[p]
+ACt2rpp_REV	Acetate reversible transport via proton symport (periplasm) (reversible)	1.44301934379363	b0010	Acetate[c] + H+[c] + 0.25765 prot_P0AC98[c] => Acetate[p] + H+[p]
+ACtex	Acetate transport via diffusion (extracellular to periplasm)	1.44301934379363	b0241 or b0929 or b1377 or b2215	Acetate[e] <=> Acetate[p]
+NH4tpp	Ammonia reversible transport (periplasm)	0.294961693028012	b0451	Ammonium[p] + 0.27981 prot_P69681[c] => Ammonium[c]
+NH4tex	Ammonia transport via diffusion (extracellular to periplasm)	0.294961693028012	b1377 or b2215 or b0241 or b0929	Ammonium[e] <=> Ammonium[p]
+PIt2rpp_EXP_1	Phosphate reversible transport via symport (periplasm)	0.115660893522282	b3493	H+[p] + Phosphate[p] + 0.0057471 prot_P0AFJ7[c] => H+[c] + Phosphate[c]
+PItex	Phosphate transport via diffusion (extracellular to periplasm)	0.115660893522282	b0241 or b0929 or b1377 or b2215	Phosphate[e] <=> Phosphate[p]

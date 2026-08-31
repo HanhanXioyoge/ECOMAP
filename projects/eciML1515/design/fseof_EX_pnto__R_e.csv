@@ -1,0 +1,16 @@
+Slope,rowID,Enzyme_ID,Enzyme_Name,Subsystems,Direction,GrRule
+0.4425,21,PPA,Inorganic diphosphatase,,0,b2744 or b2502 or b4226
+0.53385,34,ASPTA,Aspartate transaminase,,-1,b0928 or b4054
+0.86079,65,ACLS,Acetolactate synthase,,0,(b0077 and b0078) or (b3670 and b3671)
+0.53708,93,EX_h_e,H+ exchange,,1,
+0.86079,182,DHAD1,"Dihydroxy-acid dehydratase (2,3-dihydroxy-3-methylbutanoate)",,0,b3771
+0.86079,213,KARA1,"Ketol-acid reductoisomerase (2,3-dihydroxy-3-methylbutanoate)",,-1,b3774
+0.52873,296,PPC,Phosphoenolpyruvate carboxylase,,0,b3956
+0.5823,390,ADK1,Adenylate kinase,,1,b0474
+0.99989,510,ASP1DC,Aspartate 1-decarboxylase,,0,b0131
+0.99989,625,MOHMT,3-methyl-2-oxobutanoate hydroxymethyltransferase,,0,b0134
+0.53708,718,Htex,Proton transport via diffusion (extracellular to periplasm),,-1,b0241 or b0929 or b1377 or b2215
+1,1447,EX_pnto__R_e,(R)-Pantothenate exchange,,0,
+0.99989,1513,DPR,2-dehydropantoate 2-reductase,,0,b0425 or b3774
+0.99989,1678,PANTS,Pantothenate synthase,,0,b0133
+1,2714,PNTOefflux,Pantothenate efflux (lumped),Transport,0,

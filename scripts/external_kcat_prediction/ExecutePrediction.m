@@ -45,12 +45,12 @@ function ExecutePrediction(DeepLearningModel, fileDir, parameters)
 %   ExecutePrediction(["CatPred","DLKcat","CatPred","UniKP"]);
 
     if nargin < 2 || ~isempty(fileDir)
-        dataDir = fileDir;
+        reconstructionDir = fileDir;
     else
         if nargin < 3 || isempty(parameters)
             parameters = ParameterManager.getParams();
-            dataDir = parameters.dataDir;
-            dataDir = fullfile(dataDir, 'kcatData');
+            reconstructionDir = parameters.reconstructionDir;
+            reconstructionDir = fullfile(reconstructionDir, 'kcatData');
             if isempty(parameters)
                 error('ParameterManager is not set.');
             end
@@ -86,17 +86,17 @@ function ExecutePrediction(DeepLearningModel, fileDir, parameters)
             case 'DLKcat'
                 % Entry point for the DLKcat prediction pipeline.
                 % Must be available on the MATLAB path.
-                DLKcat(dataDir);
+                DLKcat(reconstructionDir);
 
             case 'UniKP'
                 % Entry point for the UniKP prediction pipeline.
                 % Must be available on the MATLAB path.
-                UniKP(dataDir);
+                UniKP(reconstructionDir);
 
             case 'CatPred'
                 % Entry point for the CatPred prediction pipeline.
                 % Must be available on the MATLAB path.
-                CatPred(dataDir);
+                CatPred(reconstructionDir);
         end
     end
 end

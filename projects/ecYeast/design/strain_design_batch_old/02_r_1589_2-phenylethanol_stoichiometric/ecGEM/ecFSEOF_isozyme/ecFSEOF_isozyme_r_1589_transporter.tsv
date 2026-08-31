@@ -1,0 +1,10 @@
+rxn_IDs	rxnNames	slope	grRules	rxn_formula
+r_0438_EXP_2	ferrocytochrome-c:oxygen oxidoreductase	23.8005132679971	Q0045 and Q0250 and Q0275 and YDL067C and YEL039C and YGL187C and YGL191W and YHR051W and YLR038C and YLR395C and YMR256C and YNL052W	ferrocytochrome c[m] + 1.266 H+[m] + 0.25 oxygen[m] + 0.18735 prot_pool[c] => ferricytochrome c[m] + 0.633 H+[c] + 0.5 H2O[m]
+r_0226	ATP synthase	20.624728033091	Q0080 and Q0085 and Q0130 and YBL099W and YBR039W and YDL004W and YDR298C and YDR377W and YJR121W and YKL016C and YLR295C and YML081C-A and YPL078C and YPL271W and YDR322C-A and YPR020W and YOL077W-A	ADP[m] + 3 H+[c] + phosphate[m] + 1.4904 prot_pool[c] => ATP[m] + 2 H+[m] + H2O[m]
+r_1277	water diffusion	19.6404390835722	YLL052C or YPR192W	H2O[e] <=> H2O[c]
+r_0439_EXP_2	ubiquinol:ferricytochrome c reductase	11.3273913794092	Q0105 and YBL045C and YDR529C and YEL024W and YFR033C and YGR183C and YHR001W-A and YJL166W and YJR048W and YOR065W and YPR191W	2 ferricytochrome c[m] + 1.266 H+[m] + ubiquinol-6[m] + 0.98308 prot_pool[c] => 2 ferrocytochrome c[m] + 2.532 H+[c] + ubiquinone-6[m]
+r_1115_EXP_4	ammonia transport	5.45842364556449	YPR138C	ammonium[e] + 0.025968 prot_pool[c] => ammonium[c]
+r_1244_EXP_3	phosphate transport	2.77764954686342	YJL198W	H+[e] + phosphate[e] + 0.71486 prot_pool[c] => H+[c] + phosphate[c]
+r_2132_EXP_2	oxoglutarate/malate exchange	2.09702852592967	YPL134C	(S)-malate[c] + 2-oxoglutarate[m] + 0.4253 prot_pool[c] => (S)-malate[m] + 2-oxoglutarate[c]
+r_1194	L-glutamate transport	0.864583665593832	YPR021C	L-glutamate[c] + 0.49764 prot_pool[c] => L-glutamate[m]
+r_1099_EXP_1	2-oxoadipate and 2-oxoglutarate transport	0.280421387237865	YOR222W	2-oxoadipic acid[m] + 2-oxoglutarate[c] + 0.38505 prot_pool[c] => 2-oxoadipic acid[c] + 2-oxoglutarate[m]

@@ -1,257 +1,241 @@
 # ECOMAP
-**Enzyme-Constrained Optimization of Metabolic Models and Analysis Pipeline**
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+ECOMAP (Enzyme-Constrained Metabolic Modeling and Multi-Omics Analysis Platform) is a MATLAB-centered framework for the reconstruction, calibration, analysis, and design of enzyme-constrained metabolic models. The repository provides a local web interface, MATLAB Live Script tutorials, and project data for yeast, *Escherichia coli*, *Corynebacterium glutamicum*, and human metabolic models.
 
-> A comprehensive MATLAB-based toolbox for reconstructing, calibrating, and analyzing enzyme-constrained metabolic models (ecModels)
+![ECOMAP workflow](images/ECOMAP_workflow.png)
 
-## Framework Overview
+> The repository is currently transitioning from legacy organism directories at the repository root to project workspaces under `projects/`. This documentation describes the present working tree. Before using an existing project, verify that absolute paths in its parameter-management file refer to the local checkout.
 
-![ECOMAP Framework](images/ECOMAP_workflow.png)
+## Scope and capabilities
 
-ECOMAP provides a unified framework for:
+| Stage | Current implementation | Primary directory |
+| --- | --- | --- |
+| Reconstruction | GEM import and normalization; basic, isozyme, and integrated ecModel topologies; UniProt, EC, complex, and metabolite annotation; database and deep-learning kcat integration | `scripts/Reconstruction/` |
+| Calibration | Sensitivity-based tuning, multi-condition tuning, Bayesian calibration, GAUKS, PRESTO, sluice structures, and RMSE evaluation | `scripts/Calibration/` |
+| Analysis | ecFVA, kcat-distribution and RMSE visualization, and Live Scripts for fermentation and overflow metabolism; the web layer additionally exposes gene-knockout and protein-usage analyses | `scripts/Analysis/` |
+| Strain design | FSEOF, ecFSEOF, OptKnock, OptForce, OKO, and OKO+ | `scripts/StrainDesign/` |
+| Web application | Local FastAPI service, single-page client, MATLAB Engine bridge, project and job management, and Chinese/English localization | `scripts/web/` |
 
-1. **Model Reconstruction** - Convert traditional GEMs to enzyme-constrained models by integrating kcat values and protein constraints
-2. **Model Calibration** - Refine model parameters using proteomics, growth rates, and 13C flux data
-3. **Model Analysis** 
+Module-specific documentation is available for [reconstruction](scripts/Reconstruction/README.md), [calibration](scripts/Calibration/README.md), [analysis](scripts/Analysis/README.md), and the [MATLAB reconstruction GUI](scripts/GUI/README.md).
 
----
+## Repository organization
 
-## Directory Structure
-
-```
+```text
 ECOMAP/
-├── README.md                    # This file
-├── setup.m                      # MATLAB path setup script
-├── images/                      # Framework diagrams
-│
-├── scripts/                     # Core functionality
-│   ├── Reconstruction/          # Model building and loading
-│   ├── Calibration/             # Bayesian, GAUKS, PRESTO methods
-│   ├── Analysis/                # FVA, visualization, knockout
-│   ├── GUI/                     # Graphical user interface
-│   ├── utilities/               # KcatRepo, model I/O
-│   └── ParameterManagement/     # Parameter management system
-│
-├── tutorial/                    # MATLAB Live Script tutorials (see below)
-│
-├── ecYeast/                    # S. cerevisiae project
-├── eciML1515/                  # E. coli iML1515 project
-├── eciCW773/                   # C. glutamicum project
-└── ecHuman/                    # Human cell model project
+├── setup.m                         # Adds core code and available legacy projects to the MATLAB path
+├── ecomapWeb.m                     # Starts and manages the local web service
+├── scripts/
+│   ├── Reconstruction/             # ecModel reconstruction
+│   ├── Calibration/                # Parameter calibration, including Bayesian and PRESTO methods
+│   ├── Analysis/                   # Analysis and visualization
+│   ├── StrainDesign/               # Strain-design algorithms
+│   ├── ParameterManagement/        # Project initialization and parameter management
+│   ├── AnalyzeKcatMatches/         # kcat-match aggregation and evaluation
+│   ├── external_kcat_prediction/   # External predictors and OKO interval construction
+│   ├── utilities/                  # Model structures, I/O, and general utilities
+│   ├── GUI/                        # Native MATLAB reconstruction GUI
+│   └── web/                        # Web client, Python server, and MATLAB bridge
+├── projects/                       # Current project-workspace convention
+│   └── <project>/
+│       ├── project.json
+│       ├── <project>ParameterManagement.m
+│       ├── models/
+│       ├── reconstruction/
+│       ├── calibration/
+│       ├── analysis/
+│       └── design/
+├── tutorial/                       # Ten MATLAB Live Script tutorials
+├── eciML1515/ and ecYeast/         # Retained legacy project copies
+└── DLmode_evaluation/              # Deep-learning model evaluation data
 ```
 
-Each organism project follows the structure:
-```
-[project]/
-├── models/           # Model files (.mat, .xml, .yml)
-├── data/             # Experimental data (see Data Preparation)
-└── analysis/         # Calibration results and benchmarks
-```
+The current `projects/` directory contains:
 
----
+- `ecYeast`: *Saccharomyces cerevisiae*
+- `eciML1515`: *Escherichia coli* iML1515
+- `eciCW773`: *Corynebacterium glutamicum* iCW773
+- `ecHuman`: human metabolic models
 
-## Tutorial Files
+## System requirements
 
-The `tutorial/` directory contains MATLAB Live Scripts (.mlx) for step-by-step guidance:
+### MATLAB workflows
 
-| Tutorial | Description |
-|----------|-------------|
-| **ecYeast_reconstruction_tutorial.mlx** | Build ecYeast model from GEM |
-| **ecYeast_calibration_tutorial.mlx** | Calibrate ecYeast with proteomics and growth data |
-| **ecYeast_analysis_tutorial.mlx** | Analyze ecYeast predictions and benchmarks |
-| **eciML1515_reconstruction_tutorial.mlx** | Build E. coli iML1515 ecModel |
-| **eciML1515_calibration_tutorial.mlx** | Calibrate E. coli with Bayesian/PRESTO methods |
-| **eciML1515_analysis_tutorial.mlx** | Analyze E. coli model performance |
-| **eciCW773_reconstruction_tutorial.mlx** | Build C. glutamicum ecModel |
-| **eciCW773_calibration_tutorial.mlx** | Calibrate C. glutamicum model |
-| **eciCW773_analysis_tutorial.mlx** | Analyze C. glutamicum predictions |
-| **ecHuman_tutorial.mlx** | Human cell model reconstruction and analysis |
+- MATLAB. The native GUI reports a compatibility warning for releases earlier than R2024a.
+- RAVEN Toolbox and COBRA Toolbox available on the MATLAB path.
+- A functional LP/MILP/QP solver. The current PRESTO configuration and OKO/OKO+ implementation explicitly require Gurobi; other workflows may also invoke a solver through RAVEN or COBRA.
+- Parallel Computing Toolbox for the parallel implementation of `ecFVA` and selected calibration procedures. The web FVA bridge provides a serial fallback if the parallel implementation fails.
+- Network access when retrieving UniProt, Complex Portal, or remote metabolite annotations.
+- Docker Desktop only when containerized CatPred, DLKcat, or UniKP prediction is requested from the MATLAB GUI.
 
-### Running Tutorials
+### Web workflow
 
-1. Open MATLAB
-2. Navigate to the `tutorial/` folder
-3. Double-click the desired `.mlx` file
-4. Follow the inline instructions and run each cell sequentially
+- A local MATLAB installation with MATLAB Engine for Python support.
+- Python 3.9–3.12 is accepted by `ecomapWeb.m`. The current `scripts/web/server/requirements.txt` is written for Python 3.12 and pins `matlabengine==24.2.*`; the engine package must remain compatible with the installed MATLAB release.
+- Network access during initial virtual-environment creation and dependency installation.
 
----
+## Quick start: web interface
 
-## Data Preparation
+Open MATLAB in the repository root and run:
 
-Each organism project (e.g., `ecYeast/`, `eciML1515/`) requires data files in the `data/` subdirectory. Below is the complete list based on the ecYeast project structure.
-
-### Core Calibration Data
-
-| File | Purpose | Calibration Method | Format |
-|------|---------|-------------------|--------|
-| **growth_rates.tsv** | Maximum growth rate constraints | `PRESTO` | Tab-separated: condition name, max growth rate |
-| **BayesianGrowthRates.tsv** | Growth rates with detailed flux data | `bayesianTuning` (useConstraint=true) | Tab-separated with substrate, uptake, and reaction fluxes |
-| **UnconstrainedMaxGrowth.tsv** | Growth rates without substrate constraints | `bayesianTuning` (useUnconstrained=true), `GAUKS` | Tab-separated with substrate and reaction fluxes |
-| **13CFluxdata.tsv** | 13C metabolic flux data | `bayesianTuning` (use13Cflux=true) | Tab-separated: reaction ID, flux value, std |
-| **csource.tsv** | Carbon source exchange reaction fluxes | `PRESTO` | Matrix format: reactions × conditions |
-
-### Multi-Omics Data
-
-| File | Purpose | Calibration Method | Format |
-|------|---------|-------------------|--------|
-| **abs_proteomics.tsv** | Absolute protein abundances (fps) for PRESTO | `PRESTO` | Gene ID, UniProt ID, abundance |
-| **paxDB.tsv** | Protein abundance database for cross-referencing | Model annotation | Gene ID, abundance score |
-| **total_protein.tsv** | Total protein content for protein pool calculation | `updateProtPool` | Total protein (g/gDCW) |
-
-### Model Annotation Data
-
-| File | Purpose | Used By | Format |
-|------|---------|---------|--------|
-| **uniprot.tsv** | UniProt ID mapping and protein sequences | `fillEnzymeInformation`, `writeInputFile` | Gene ID, UniProt ID, sequence |
-| **metInfo.tsv** | Metabolite information (SMILES, InChI, etc.) | `getMetinfo` | Metabolite ID, identifiers |
-| **ComplexPortal.json** | Protein complex annotations | `applyComplexdata` | JSON format |
-| **kcatData/** (folder) | kcat values from databases (BRENDA, SABIO) | `getkcatfromDatabase`, `dbKcatMatch` | TSV with EC number, kcat, source |
-
-### Data File Formats
-
-#### growth_rates.tsv (for PRESTO)
-Simple two-column format: condition name and maximum growth rate.
-```
-ConditionName    MaxGrowthRate
-DiBartolomeo2020_Gluc    0.398366667
-DiBartolomeo2020_Etoh    0.1225
-Lahtvee2017_REF    0.1
-Yu2021_N30_005    0.05
-```
-
-#### BayesianGrowthRates.tsv (for bayesianTuning with useConstraint=true)
-Multi-column format with substrate uptake and reaction fluxes.
-```
-    Substrate    Uptake    r_2111    r_1634    r_1761    r_1808    r_2033    r_1672    r_1992    r_1654    OxAvail    Media
-1    r_1714    -13.33333333    0.36    NaN    19.82608696    0.38    0    NaN    NaN    NaN    aerobic    MIN
-2    r_1714    -15.44444444    0.39    NaN    22.4068323    0.37    0    NaN    NaN    NaN    aerobic    MIN
-...
-```
-- **Substrate**: Reaction ID for carbon source
-- **Uptake**: Substrate uptake rate (negative = consumption)
-- **r_XXXX**: Flux through various reactions (r_2111 = growth rate)
-- **OxAvail**: aerobic/anaerobic/limited
-- **Media**: MIN or other media types
-
-#### UnconstrainedMaxGrowth.tsv (for bayesianTuning with useUnconstrained=true)
-Similar to BayesianGrowthRates but only contains growth rates (no uptake data).
-```
-    Substrate    Uptake    r_2111    r_1634    r_1761    r_1808    r_2033    r_1672    r_1992    r_1654    OxAvail    Media
-1    r_1709    NaN    0.338    NaN    NaN    NaN    NaN    NaN    NaN    NaN    aerobic    MIN
-2    r_1710    NaN    0.28    NaN    NaN    NaN    NaN    NaN    NaN    NaN    aerobic    MIN
-3    r_1714    NaN    0.41    NaN    NaN    NaN    NaN    NaN    NaN    NaN    aerobic    MIN
-...
-```
-
-#### csource.tsv (for PRESTO getconditions)
-Matrix format with exchange reactions as rows and experimental conditions as columns.
-```
-exchangeRxn    DiBartolomeo2020_Gluc    DiBartolomeo2020_Etoh    Lahtvee2017_REF    ...
-r_1714    -14.38395556    0    -1.070928479    ...
-r_1808    0.666410217    -0.202562355    0.000857154    ...
-r_1634    0.444200167    0.0515425    0    ...
-r_1992    -1000    -1000    -2.446472988    ...
-r_1672    0    0    2.62755453    ...
-r_1654    -1000    -1000    -1000    ...
-...
-```
-
-#### abs_proteomics.tsv
-```
-gene_id    protein_id    abundance
-YAL038W    P00560    1234.5
-YBR019C    P32167    567.8
-```
-
-#### 13CFluxdata.tsv
-13C metabolic flux data with constraint and flux types.
-```
-Type       RxnName                  Carbon    Direction    Cond1     Cond2     Cond3     Cond4
-constraint r_2111                                0.405      0.150     0.300     0.400
-constraint r_1714                               -16.731     -1.560     -4.900     -8.230
-constraint r_1672                                28.759      3.610     10.320    13.740
-constraint r_1992                                -3.269      Nan       Nan       Nan
-flux      r_0534                    6          {1}        16.731     1.560     4.900     8.230
-flux      r_0466                    6          {1}         1.781     0.853     1.450     1.243
-flux      r_0467                    6          {1}        14.168     0.393     2.940     6.411
-...
-```
-- **Type**: `constraint` (growth/substrate constraints) or `flux` (reaction flux values)
-- **RxnName**: Reaction identifier
-- **Carbon**: Number of carbon atoms (only for flux type)
-- **Direction**: Reaction directionality notation (e.g., {1}, {-1;1})
-- **Cond1-Cond4**: Flux values under different experimental conditions
-
-
-### Model File Formats
-
-| Format | Extension | Description |
-|--------|-----------|-------------|
-| SBML | `.xml` | Standard exchange format |
-| JSON | `.json` | GECKO, ECMpy style |
-| YAML | `.yml`, `.yaml` | Yeast9, ecYeastGEM |
-| MATLAB | `.mat` | Various ecModel types |
-
----
-
-## Installation
-
-### Requirements
-
-- **MATLAB** 2022a or higher
-- **COBRA Toolbox** 3.1+ ([Installation guide](https://opencobra.github.io/cobratoolbox/stable.html))
-- **RAVEN Toolbox** 2.9.2+ ([Installation guide](https://sysbiochalmers.github.io/RAVEN/))
-- **Gurobi Optimizer** (or other MATLAB-supported solvers)
-
-### Setup
-
-1. Clone the repository:
-```bash
-git clone https://github.com/HanhanXioyoge/ECOMAP.git
-cd ECOMAP
-```
-
-2. Add all paths in MATLAB:
 ```matlab
 setup
+ecomapWeb                 % Start the service and open the browser
 ```
----
 
+The service listens on `http://127.0.0.1:8000` by default and is accessible only from the local machine. Service-management commands are:
 
-## Key Functions Reference
-
-### Reconstruction
-| Function | Description |
-|----------|-------------|
-| `loadModel.m` | Load models (XML, JSON, YAML, MAT) |
-| `convertecModel.m` | Convert GEM to ecModel |
-| `fillEnzymeInformation.m` | Add UniProt IDs and sequence info |
-| `getkcatfromDatabase.m` | Retrieve kcat from BRENDA/SABIO |
-| `buildEnzConstrRxnSet.m` | Build enzyme constraint reactions |
-
-### Calibration
-| Function | Description |
-|----------|-------------|
-| `GAUKS.m` | Growth-Anchored kcat calibration |
-| `abc_max.m` | Approximate Bayesian Computation |
-| `bayesianTuning.m` | MCMC-based Bayesian tuning |
-| `PRESTO.m` | Protein Reinforcement calibration |
-| `sensitivityTuning.m` | Single-condition sensitivity analysis |
-| `MulticonditionsensitivityTuning.m` | Multi-condition sensitivity analysis |
-
----
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE.md](LICENSE.md) for details.
-
----
-
-## Citation
-
-If you use ECOMAP in your research, please cite:
-
+```matlab
+ecomapWeb('status')
+ecomapWeb('log')
+ecomapWeb('restart')
+ecomapWeb('stop')
 ```
-ECOMAP: Enzyme-Constrained Metabolic Modeling & Multi-Omics Analysis Platform
+
+At first launch, the bootstrapper searches for Python 3.9–3.12, creates `scripts/web/server/.venv/`, and installs the backend requirements. If automatic discovery fails, create `scripts/web/server/.ecomap-python`:
+
+```ini
+python=C:\Path\To\Python312\python.exe
+version=3.12.0
+type=python.org
 ```
+
+A bare absolute path to either the Python executable or its installation directory is also accepted. The configuration file, virtual environment, uploads, PID file, and logs are host-specific runtime artifacts and should not be committed.
+
+The backend maintains one MATLAB Engine instance and serializes MATLAB calls. Consequently, multiple long-running jobs are not executed concurrently within a single backend process.
+
+## Quick start: direct MATLAB use
+
+### 1. Initialize the MATLAB path
+
+```matlab
+cd('C:\path\to\ECOMAP')
+setup
+```
+
+`setup` recursively adds `scripts/`, the available legacy organism directories, and `tutorial/`. It does not recursively add `projects/*`; passing the full parameter-manager path to `ParameterManager` loads the selected project.
+
+### 2. Load project parameters and a model
+
+```matlab
+root = fileparts(which('setup'));
+manager = fullfile(root, 'projects', 'eciML1515', ...
+    'eciML1515ParameterManagement.m');
+params = ParameterManager.getParams(manager);
+
+% Existing files may retain absolute paths from the originating computer.
+params.projectDir        = fullfile(root, 'projects', 'eciML1515');
+params.path              = params.projectDir;
+params.projectJson       = fullfile(params.projectDir, 'project.json');
+params.parameterManager  = manager;
+params.modelsDir         = fullfile(params.projectDir, 'models');
+params.reconstructionDir = fullfile(params.projectDir, 'reconstruction');
+params.calibrationDir    = fullfile(params.projectDir, 'calibration');
+params.analysisDir       = fullfile(params.projectDir, 'analysis');
+params.designDir         = fullfile(params.projectDir, 'design');
+
+model = loadModel(params.InitialModel, params.modeltype, ...
+    params.modelsDir, params);
+```
+
+The reconstruction `loadModel` entry point currently supports `.xml`, `.json`, `.yml`, and `.yaml`. MATLAB `.mat` models are handled by the strain-design loader and selected web workflows, not by this reconstruction entry point.
+
+### 3. Create a project
+
+```matlab
+root = fileparts(which('setup'));
+InitializeECOMAPproject('myEcProject', root)
+```
+
+This command creates `projects/myEcProject/`, the five stage directories, a parameter-management file, and `project.json`, and then changes the MATLAB working directory to the new project. Before reconstruction, define the input model, model type, organism metadata, protein-pool parameters, carbon-source exchange reaction, and biomass reaction.
+
+Several calibration functions require two fields that the current parameter template does not define automatically. Add them before calling those functions:
+
+```matlab
+params.dataDir   = fullfile(params.calibrationDir, 'data');
+params.outputDir = params.analysisDir;
+```
+
+Place the experimental data in the corresponding directory. Detailed requirements are given in the [calibration documentation](scripts/Calibration/README.md).
+
+## Model lifecycle
+
+```text
+GEM or external ecGEM
+        │
+        ▼
+Import and normalization → ecModel topologies → annotation and kcat → merge and growth validation
+        │
+        ▼
+Sensitivity / Bayesian / GAUKS / PRESTO calibration
+        │
+        ├──► ecFVA, knockout analysis, protein-usage analysis, and visualization
+        │
+        └──► FSEOF / OptKnock / OptForce / OKO / OKO+
+```
+
+Web-managed and standardized workflows store artifacts under `models/`, `reconstruction/`, `calibration/`, `analysis/`, and `design/`. The web project page infers step status from files in these directories; moving stage artifacts may therefore invalidate the displayed state. Some direct MATLAB entry points use relative working directories. For example, `strainDesign` writes to `workspaces/` beneath the current directory unless its execution context is managed externally.
+
+## Tutorials
+
+The `tutorial/` directory currently contains:
+
+| Project | Reconstruction | Calibration | Analysis |
+| --- | --- | --- | --- |
+| ecYeast | `ecYeast_reconstruction_tutorial.mlx` | `ecYeast_calibration_tutorial.mlx` | `ecYeast_analysis_tutorial.mlx` |
+| eciML1515 | `eciML1515_reconstruction_tutorial.mlx` | `eciML1515_calibration_tutorial.mlx` | `eciML1515_analysis_tutorial.mlx` |
+| eciCW773 | `eciCW773_reconstruction_tutorial.mlx` | `eciCW773_calibration_tutorial.mlx` | `eciCW773_analysis_tutorial.mlx` |
+| ecHuman | `ecHuman_tutorial.mlx` | — | — |
+
+Run `setup`, open the required `.mlx` file in MATLAB, and execute its cells sequentially. Live Scripts are binary documents and may contain paths from the machine on which they were created; inspect and update such paths before execution.
+
+## Principal entry points
+
+| Module | MATLAB entry points | Web bridges |
+| --- | --- | --- |
+| Projects and models | `InitializeECOMAPproject`, `loadModel`, `convertecModel` | `mdpInitProject`, `mdpLoadModel`, `mdpConvertecModel` |
+| Annotation and kcat | `getECnumber`, `getMetinfo`, `getComplexdata`, `getPrediction`, `completeKcatMatch`, `mergeKcats` | `mdpAnnotate`, `mdpDlPredict`, `mdpKcatCompare`, `mdpKcatMerge`, `mdpGrowthPredict` |
+| Calibration | `sensitivityTuning`, `MulticonditionsensitivityTuning`, `bayesianTuning`, `GAUKS`, `PRESTO` | `mdpSensitivityTuning`, `mdpBayesian`, `mdpGauks`, `mdpPresto` |
+| Analysis | `ecFVA`, `plotEcFVA`, `plotMultiECDF_Log10`, `plotRMSEBar`, `plotSciPie` | `mdpEcFva`, `mdpKnockout`, `mdpProteinAnalysis` |
+| Strain design | `strainDesign` and the functions under `algorithms/` | `mdpRunFseof`, `mdpRunOptknock`, `mdpRunOptforce`, `mdpRunOko`, `mdpRunOkoPlus` |
+
+The authoritative registry of web-executable algorithms is `scripts/web/matlab/registry/algorithmRegistry.m`.
+
+## Troubleshooting
+
+### `ParameterManager is not set`
+
+Call `ParameterManager.getParams('<absolute parameter-manager path>')` before model operations and pass the returned `params` structure explicitly to downstream functions.
+
+### Models or data cannot be found after moving the repository
+
+Inspect `<project>ParameterManagement.m` and `project.json` for obsolete absolute paths. Direct MATLAB workflows primarily use the parameter-management file, whereas the web project manager scans `projects/<project>/project.json`.
+
+### The web application does not start
+
+```matlab
+ecomapWeb('status')
+ecomapWeb('log')
+```
+
+Inspect `.web.log`, the Python version, MATLAB Engine compatibility, the RAVEN/COBRA paths, and solver licensing. If virtual-environment reconstruction fails repeatedly within five minutes, the launcher creates `.ecomap-rebuild-failed`. Resolve the dependency failure, remove this marker, and retry.
+
+### Solver failure or `err_gurobi_license`
+
+Confirm that the Gurobi MATLAB interface is on the MATLAB path, the license is valid, and COBRA/RAVEN is configured to use an available solver. The current OKO and OKO+ implementation has no non-Gurobi fallback.
+
+### External kcat prediction fails
+
+Verify Docker availability, the required prediction image and model assets, and the separate dependencies listed in `scripts/external_kcat_prediction/requirements.txt`. These dependencies are distinct from the web-backend virtual environment.
+
+## Development conventions
+
+- Numerical methods should remain in MATLAB. The web layer invokes them through `mdp*.m` bridges rather than reimplementing the algorithms.
+- Bridges return the common `{ok, error_code, error_message, result}` JSON envelope documented in `scripts/web/matlab/bridge/CONTRACT.md`.
+- Chinese and English resources are stored in `scripts/web/matlab/i18n/zh.json` and `en.json`. The server verifies key parity at startup.
+- A new web algorithm normally requires a bridge, an `algorithmRegistry.m` entry, a front-end integration, and matching entries in both localization files.
+
+## License and citation
+
+ECOMAP is distributed under the [MIT License](LICENSE.md). Copyright (c) 2026 ECOMAP contributors.
+
+The repository does not currently provide a formal publication or DOI. Citation guidance should follow a subsequent release from the project maintainers.
