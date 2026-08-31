@@ -1,0 +1,21 @@
+Slope,rowID,Enzyme_ID,Enzyme_Name,Subsystems,Direction,GrRule
+0.68835,7,ASPTA,aspartate transaminase,,-1,Cgl0240
+0.99988,256,ASP1DC,aspartate 1-decarboxylase,,0,Cgl0135
+0.99988,277,DPR,2-dehydropantoate 2-reductase,,0,Cgl1089
+0.99988,308,MOHMT,3-methyl-2-oxobutanoate hydroxymethyltransferase,,0,Cgl0114
+0.99988,325,PANTS,pantothenate synthase,,0,Cgl0113 or Cgl2688
+0.80721,448,EX_h_e,H+ exchange,,0,
+1,489,EX_pnto__R_e,(R)-Pantothenate exchange,,0,
+0.51353,532,GLYCL,Glycine Cleavage System,,0,
+0.41127,539,GLUDy,glutamate dehydrogenase (NADP),,0,Cgl2079
+0.42181,583,GHMT2r,"glycine hydroxymethyltransferase, reversible",,1,Cgl0996
+0.34906,585,PGCD,phosphoglycerate dehydrogenase,,0,Cgl1284
+0.34906,586,PSERT,phosphoserine transaminase,,0,Cgl0828
+0.34906,587,PSP_L,phosphoserine phosphatase (L-serine),,0,Cgl2522
+0.8076,708,ADK1,adenylate kinase,,1,Cgl0556
+0.63231,823,PPKr,polyphosphate kinase,,-1,
+0.0080482,999,GLCptspp,D-glucose transport via PEP:Pyr PTS,,0,Cgl3036
+0.88434,1181,ACLS,acetolactate synthase,,0,Cgl1271 and Cgl1272
+0.88434,1182,DHAD1,"dihydroxy-acid dehydratase (2,3-dihydroxy-3-methylbutanoate)",,0,Cgl1268
+0.88434,1189,KARA1,"ketol-acid reductoisomerase (2,3-dihydroxy-3-methylbutanoate)",,-1,Cgl1273
+1,1195,PNTOefflux,Pantothenate efflux (lumped),Transport,0,

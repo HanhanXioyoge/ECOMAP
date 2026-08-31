@@ -1,0 +1,7 @@
+rxn_IDs	rxnNames	slope	grRules	rxn_formula
+ATPS4rpp	ATP synthase (four protons for one ATP)	417.436266487823	Cgl1213 and Cgl1211 and Cgl1210 and Cgl1208 and Cgl1212 and Cgl1209 and Cgl1207 and Cgl1206	ADP[c] + 4 H+[e] + Phosphate[c] + 0.0045888 prot_pool[c] => ATP[c] + H2O[c] + 3 H+[c]
+CYTBO3_4pp	cytochrome oxidase bo3 (ubiquinol-8: 4 protons)	350.281064273883	Cgl2194 and Cgl2523 and Cgl2195 and Cgl2192	4 H+[c] + 0.5 O2[c] + Ubiquinol-8[c] + 0.00062788 prot_pool[c] => H2O[c] + 4 H+[e] + Ubiquinone-8[c]
+NADH16pp	NADH dehydrogenase (ubiquinone-8 & 3 protons)	104.844582208499	Cgl2729 and Cgl2731 and Cgl0269	4 H+[c] + Nicotinamide adenine dinucleotide - reduced[c] + Ubiquinone-8[c] + 0.030658 prot_pool[c] => 3 H+[e] + Nicotinamide adenine dinucleotide[c] + Ubiquinol-8[c]
+NH4tpp	ammonia reversible transport	47.8619341805373	Cgl2061 or Cgl1583	Ammonium[e] + 0.055486 prot_pool[c] => Ammonium[c]
+Kt2pp	potassium transport in via proton symport	6.94972472225798	Cgl0712	H+[e] + potassium[e] + 0.46732 prot_pool[c] => H+[c] + potassium[c]
+PIuabcpp	phosphate transport via ABC system (uptake)	2.72635611606299	Cgl2575 and Cgl2572 and Cgl2573 and Cgl2574	ATP[c] + H2O[c] + Phosphate[e] + 13.7151 prot_pool[c] => ADP[c] + H+[c] + 2 Phosphate[c]

@@ -1,0 +1,33 @@
+KO_ID,KO_Name,Subsystems,GrRule
+FUM,fumarase,,Cgl1010
+ADK3,adentylate kinase (GTP),,Cgl0315
+
+UDCPDP,undecaprenyl-diphosphatase,,Cgl1515
+FUM,fumarase,,Cgl1010
+
+FUM,fumarase,,Cgl1010
+UPP3S,uroporphyrinogen-III synthase,,Cgl0429
+
+G3PT,glycerol-3-phosphatase,,Cgl1506
+FUM,fumarase,,Cgl1010
+
+ASNS1,asparagine synthase (glutamine-hydrolysing),,Cgl2196
+FUM,fumarase,,Cgl1010
+
+FUM,fumarase,,Cgl1010
+
+RBK,ribokinase,,Cgl1366 or Cgl2325
+FBA,fructose-bisphosphate aldolase,,Cgl2770
+
+G3PAT180,glycerol-3-phosphate acyltransferase (C18:0),,Cgl1392 or Cgl2254 or cg3050 or Cgl2858 or Cgl2892
+GLUTRS,glutamyl-tRNA synthetase,,(Cgl0236 and Cgl1293) or cgtRNA_3556 or cgtRNA_3557 or cgtRNA_3584
+
+MI1PP,myo-inositol 1-phosphatase,,Cgl1909 or Cgl2095
+GLUTRR,glutamyl-tRNA reductase,,Cgl0347
+
+UDCPDP,undecaprenyl-diphosphatase,,Cgl1515
+G3PAT180,glycerol-3-phosphate acyltransferase (C18:0),,Cgl1392 or Cgl2254 or cg3050 or Cgl2858 or Cgl2892
+
+UGMDDS,"UDP-N-acetylmuramoyl-L-alanyl-D-glutamyl-meso-2,6-diaminopimeloyl-D-alanyl-D-alanine synthetase",,Cgl2162
+GLUTRS,glutamyl-tRNA synthetase,,(Cgl0236 and Cgl1293) or cgtRNA_3556 or cgtRNA_3557 or cgtRNA_3584
+
