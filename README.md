@@ -22,7 +22,7 @@ Module-specific documentation is available for [reconstruction](scripts/Reconstr
 
 ```text
 ECOMAP/
-├── setup.m                         # Adds core code and available legacy projects to the MATLAB path
+├── setup.m                         # Configures core MATLAB code and an optional project workspace
 ├── ecomapWeb.m                     # Starts and manages the local web service
 ├── scripts/
 │   ├── Reconstruction/             # ecModel reconstruction
@@ -112,7 +112,14 @@ cd('C:\path\to\ECOMAP')
 setup
 ```
 
-`setup` recursively adds `scripts/`, the available legacy organism directories, and `tutorial/`. It does not recursively add `projects/*`; passing the full parameter-manager path to `ParameterManager` loads the selected project.
+`setup` adds the repository root and only the MATLAB-bearing directories under `scripts/`; runtime folders, uploads, caches, model data, and web assets are excluded. Project workspaces are discovered automatically but are not added by default, which prevents same-named project helpers from shadowing one another. Select a project when its local scripts or tutorials are needed:
+
+```matlab
+setup('ecYeast')   % Configure the core plus projects/ecYeast
+setup('all')       % Optional: configure every discovered project
+```
+
+Calling `setup` again replaces only this checkout's existing path entries, so switching projects does not disturb external RAVEN, COBRA, or solver paths. Passing the full parameter-manager path to `ParameterManager` remains supported without selecting a project.
 
 ### 2. Load project parameters and a model
 
