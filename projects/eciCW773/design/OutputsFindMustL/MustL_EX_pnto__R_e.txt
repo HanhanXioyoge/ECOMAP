@@ -1,0 +1,12 @@
+ACONTa
+ACONTb
+MDH
+EX_co2_e
+EX_h2o_e
+PDH
+NH4tpp
+O2tpp
+ATPS4rpp
+CYTBO3_4pp
+CO2tpp
+KARA1

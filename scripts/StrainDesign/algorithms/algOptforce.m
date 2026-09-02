@@ -9,6 +9,11 @@ function result = algOptforce(model, biomassRxn, targetRxn, CsourceRxn, outputFi
 %     4. findMustUU / findMustLL / findMustUL (second-order must sets)
 %     5. optForce (forced intervention sets, K=1 then K=2)
 %
+%   The carbon-source flux used by the MUST/OptForce MILPs is read from
+%   the model lower bound.  This is important for models such as iCW773,
+%   whose EX_glc_e lower bound is -4.67 (hard-coding -10 or -100 makes
+%   the MILPs infeasible before branch-and-bound starts).
+%
 %   All mustU / mustL / mustUU / mustLL / mustUL sets are stored in result.targets.
 %   Re-run overwrites previous optforce.* files in the workspace subfolder.
 %   Per-set interventions are grouped together in the CSV; sets are separated
@@ -56,6 +61,10 @@ function result = algOptforce(model, biomassRxn, targetRxn, CsourceRxn, outputFi
     matFile    = fullfile(algoDir, matName);
     output = ~isempty(outputFile);
 
+    if ~isempty(algoDir) && ~exist(algoDir, 'dir')
+        mkdir(algoDir);
+    end
+
     % --- Re-run cleanup (mirror algFseof/algOptknock) ---
     for oldName = {csvName, matName}
         p = fullfile(algoDir, oldName{1});
@@ -79,6 +88,22 @@ function result = algOptforce(model, biomassRxn, targetRxn, CsourceRxn, outputFi
     wtBiomass     = growthRate_sol.f;
     targetMaxFlux = maxTarget_sol.f;
 
+    % Use a feasible uptake value from this GEM rather than a reference-
+    % model constant.  A negative lower bound is the COBRA convention for
+    % uptake through an exchange reaction.
+    cSourcePos = find(strcmp(model.rxns, CsourceRxn), 1);
+    if isempty(cSourcePos)
+        error('algOptforce:UnknownCSource', ...
+              'Carbon-source reaction "%s" was not found in the model.', CsourceRxn);
+    end
+    cSourceFlux = model.lb(cSourcePos);
+    if ~isfinite(cSourceFlux) || cSourceFlux >= 0
+        error('algOptforce:InvalidCSourceBound', ...
+              ['Carbon-source reaction "%s" must have a finite negative lower ' ...
+               'bound; current lower bound is %g.'], CsourceRxn, cSourceFlux);
+    end
+    fprintf('[algOptforce] Carbon-source flux is fixed to the model bound: %g\n', cSourceFlux);
+
     % --- Step 2: WT / mutant constraints ---
     constrWT = struct('rxnList', {{biomassRxn}}, 'rxnValues', 0.98*wtBiomass, 'rxnBoundType', 'b');
 
@@ -90,7 +115,8 @@ function result = algOptforce(model, biomassRxn, targetRxn, CsourceRxn, outputFi
 
     % --- Step 4a: First-order must sets ---
     runID = [runBase '_K1'];
-    constrOpt = struct('rxnList', {{CsourceRxn, biomassRxn, targetRxn}}, 'values', [-10, 0.01*wtBiomass, 0.98*targetMaxFlux]');
+    constrOpt = struct('rxnList', {{CsourceRxn, biomassRxn, targetRxn}}, ...
+                       'values', [cSourceFlux, 0.01*wtBiomass, 0.98*targetMaxFlux]');
     mustLName  = ['MustL_' safeTarget];
     mustUName  = ['MustU_' safeTarget];
     mustUUName = ['MustUU_' safeTarget];
@@ -140,21 +166,41 @@ function result = algOptforce(model, biomassRxn, targetRxn, CsourceRxn, outputFi
     % --- Step 5: optForce (K=1, then K=2) ---
     k = 1;
     nSets = 1;
-    constrOpt_force = struct('rxnList', {{CsourceRxn, biomassRxn}}, 'values', [-100, 0]);
+    constrOpt_force = struct('rxnList', {{CsourceRxn, biomassRxn}}, ...
+                             'values', [cSourceFlux, 0]);
 
-    [optForceSets, posOptForceSets, typeRegOptForceSets, flux_optForceSets] = ...
+    optForceSets = {};
+    posOptForceSets = [];
+    typeRegOptForceSets = {};
+    flux_optForceSets = [];
+    runID2 = [runBase '_K2'];
+    status = 'completed';
+    statusMessage = '';
+
+    % COBRA Toolbox 3.4 saveInputsOptForce rejects an empty mustU or mustL,
+    % although the OptForce MILP itself supports a one-sided/empty MUST set.
+    % Disable only that internal input archive when necessary; do not skip
+    % the actual intervention search.
+    keepOptForceInputs = ~(isempty(mustU) || isempty(mustL));
+    if ~keepOptForceInputs
+        warning('algOptforce:EmptyMustSetArchive', ...
+                ['One or more MUST sets are empty (mustU=%d, mustL=%d). ' ...
+                 'OptForce will run with keepInputs=0 to avoid the COBRA 3.4 ' ...
+                 'saveInputsOptForce limitation.'], numel(mustU), numel(mustL));
+    end
+
+    [optForceSetsK1, ~, typeRegOptForceSetsK1, ~] = ...
         optForce(model, targetRxn, biomassRxn, mustU, mustL, ...
                  minFluxesW, maxFluxesW, minFluxesM, maxFluxesM, ...
                  'k', k, 'nSets', nSets, 'constrOpt', constrOpt_force, ...
                  'runID', runID, 'outputFolder', 'OutputsOptForce', ...
                  'outputFileName', forceName, 'printExcel', 1, 'printText', 1, ...
-                 'printReport', 1, 'keepInputs', 1, 'verbose', 1);
+                 'printReport', 1, 'keepInputs', keepOptForceInputs, 'verbose', 1);
 
     % --- Second optForce call (K=2, nSets=20) ---
     k = 2;
     nSets = 20;
-    runID2 = [runBase '_K2'];
-    excludedRxns2 = struct('rxnList', {{optForceSets}}, 'typeReg','U');
+    excludedRxns2 = buildExclusionStruct(optForceSetsK1, typeRegOptForceSetsK1);
     [optForceSets, posOptForceSets, typeRegOptForceSets, flux_optForceSets] = ...
         optForce(model, targetRxn, biomassRxn, mustU, mustL, ...
                  minFluxesW, maxFluxesW, minFluxesM, maxFluxesM, ...
@@ -162,13 +208,18 @@ function result = algOptforce(model, biomassRxn, targetRxn, CsourceRxn, outputFi
                  'excludedRxns', excludedRxns2, ...
                  'runID', runID2, 'outputFolder', 'OutputsOptForce', ...
                  'outputFileName', forceName, 'printExcel', 1, 'printText', 1, ...
-                 'printReport', 1, 'keepInputs', 1, 'verbose', 1);
+                 'printReport', 1, 'keepInputs', keepOptForceInputs, 'verbose', 1);
+    if isempty(optForceSets)
+        status = 'no_force_sets';
+        statusMessage = 'OptForce completed but did not find an intervention set.';
+    end
 
     % --- Build result struct (algFseof-style 7 fields) ---
     result = struct( ...
-        'config',     struct('K', 2, 'NSets', nSets, ...
-                             'WTGrowthFrac', 0.95, 'MTGrowthFrac', 0.5, ...
-                             'CSourceBound', -10, ...
+        'config',     struct('K', 2, 'NSets', 20, ...
+                             'WTGrowthFrac', 0.98, 'MTGrowthFrac', 0.01, ...
+                             'TargetFluxFrac', 0.98, ...
+                             'CSourceBound', cSourceFlux, ...
                              'CsourceRxn', CsourceRxn, ...
                              'RunID', runID2), ...
         'biomassRxn', biomassRxn, ...
@@ -195,6 +246,9 @@ function result = algOptforce(model, biomassRxn, targetRxn, CsourceRxn, outputFi
             'maxFluxesM',    maxFluxesM, ...
             'wtBiomass',     wtBiomass, ...
             'targetMaxFlux', targetMaxFlux));
+    result.targets.status = status;
+    result.targets.message = statusMessage;
+    result.targets.optForceInputsArchived = keepOptForceInputs;
 
     % --- Open CSV (file or stdout) and write header ---
     if output
@@ -206,11 +260,11 @@ function result = algOptforce(model, biomassRxn, targetRxn, CsourceRxn, outputFi
     end
 
     % --- Build result.rows and write CSV (per-set, grouped, separated) ---
-    nSetsOut = numel(optForceSets);
+    nSetsOut = size(optForceSets, 1);
     for k = 1:nSetsOut
-        rxnsInSet   = optForceSets{k};
-        typesInSet  = typeRegOptForceSets{k};
-        fluxesInSet = flux_optForceSets{k};
+        rxnsInSet   = optForceSets(k, :);
+        typesInSet  = typeRegOptForceSets(k, :);
+        fluxesInSet = flux_optForceSets(k, :);
         for j = 1:numel(rxnsInSet)
             % --- Build row data ---
             rowFlux = 0;
@@ -269,9 +323,6 @@ function result = algOptforce(model, biomassRxn, targetRxn, CsourceRxn, outputFi
     end
 
     % --- Persist result.mat ---
-    if ~isempty(algoDir) && ~exist(algoDir, 'dir')
-        mkdir(algoDir);
-    end
     result.matFile = matFile;
     save(result.matFile, 'result');
     fprintf('[algOptforce] Saved `result` to %s\n', result.matFile);
@@ -282,6 +333,42 @@ function safe = safeTargetName(targetRxn)
     safe = regexprep(char(targetRxn), '[^A-Za-z0-9_-]+', '_');
     safe = regexprep(safe, '^_+|_+$', '');
     if isempty(safe), safe = 'target'; end
+end
+
+
+function excludedRxns = buildExclusionStruct(forceSets, typeSets)
+% buildExclusionStruct  Convert K=1 output into optForce exclusion input.
+    excludedRxns = struct('rxnList', {{}}, 'typeReg', '');
+    if isempty(forceSets)
+        return;
+    end
+
+    rxnList = forceSets(:);
+    typeList = typeSets(:);
+    valid = ~cellfun(@isempty, rxnList) & ~cellfun(@isempty, typeList);
+    rxnList = rxnList(valid);
+    typeList = typeList(valid);
+    if isempty(rxnList)
+        return;
+    end
+
+    [uniqueRxns, ~, groups] = unique(rxnList, 'stable');
+    typeCodes = repmat('A', 1, numel(uniqueRxns));
+    for i = 1:numel(uniqueRxns)
+        groupTypes = unique(typeList(groups == i));
+        if numel(groupTypes) ~= 1
+            continue;
+        end
+        switch lower(groupTypes{1})
+            case {'u', 'upregulation'}
+                typeCodes(i) = 'U';
+            case {'d', 'l', 'downregulation'}
+                typeCodes(i) = 'D';
+            case {'k', 'knockout'}
+                typeCodes(i) = 'K';
+        end
+    end
+    excludedRxns = struct('rxnList', {uniqueRxns'}, 'typeReg', typeCodes);
 end
 
 
