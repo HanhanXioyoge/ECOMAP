@@ -1,4 +1,4 @@
-function [rmse_final, exp_out, sim_out] = abc_max(ecModel, kcat_random_all, growthdata, UnconstrainedGrowth, C13Fluxdata, proc, sample_generation, j, bioRxn, c_source, rxn2block, org_name, C13ReactionMap)
+function [rmse_final, exp_out, sim_out] = abc_max_flux(ecModel, kcat_random_all, growthdata, UnconstrainedGrowth, C13Fluxdata, proc, sample_generation, j, bioRxn, c_source, rxn2block, org_name, C13ReactionMap)
 
     nstep = sample_generation / proc;
     rmse_final = zeros(1, nstep);
@@ -169,21 +169,43 @@ function [rmse, exp_complete, simulated_out] = rmsecal(ecModel, data, constrain,
                 sol = solveLP(model_tmp);
             end
         end
-        
         % --- 4. CIRCUIT BREAKER & RMSE CALCULATION ---
         if ~isempty(sol.x) && sol.stat == 1
             valid_mask = ~isnan(exp_all(i, :));
-            c_factors = ecModel.excarbon(idx_complete);
-            c_factors(c_factors == 0) = 1; 
-            
-            exp_c_flux = exp_all(i, valid_mask) .* c_factors(valid_mask);
-            sim_c_flux = sol.x(idx_complete(valid_mask))' .* c_factors(valid_mask);
-            
-            rxnblockidx = ismember(model_tmp.rxns, setdiff(rxn2block, model_tmp.rxns(idx_complete(2))));
-            sim_block_c = sol.x(rxnblockidx)' .* ecModel.excarbon(rxnblockidx);
-            
-            % Unified Net Carbon Flux RMSE
-            rmse_vec(i) = sqrt(mean(([exp_c_flux, 0] - [sim_c_flux, sum(sim_block_c)]).^2));
+            % ==========================================================
+            % Remove carbon atom weighting
+            % Direct comparison using raw flux values
+            % ==========================================================
+            exp_flux = exp_all(i, valid_mask);
+            sim_flux = sol.x(idx_complete(valid_mask))';
+            % ==========================================================
+            % Additional rxn2block leakage penalty
+            % Preserve original aggregation logic:
+            % all rxn2block reactions contribute as ONE additional residual
+            % ==========================================================
+            rxnblockidx = ismember( ...
+                model_tmp.rxns, ...
+                setdiff(rxn2block, model_tmp.rxns(idx_complete(2))) ...
+            );
+            if any(rxnblockidx)
+                % No carbon weighting here
+                sim_block_flux = sol.x(rxnblockidx)';
+                
+                % Unified RMSE with one additional leakage residual
+                rmse_vec(i) = sqrt(mean( ...
+                    ([exp_flux, 0] - ...
+                     [sim_flux, sum(sim_block_flux)]).^2 ...
+                ));
+                
+            else
+                
+                % No rxn2block:
+                % avoid artificial +1 zero term
+                rmse_vec(i) = sqrt(mean( ...
+                    (exp_flux - sim_flux).^2 ...
+                ));
+                
+            end
             simulated_out(i, :) = sol.x(idx_complete)';
         else
             % INFEASIBLE: Set flag and break the experiment loop immediately

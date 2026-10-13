@@ -6,53 +6,47 @@ function model = addCarbonNum(model,bioRxn)
 % 1. Initialize carbon content for all reactions
 model.excarbon = zeros(1,length(model.rxns));
 
-% 2. Get the exchange reactions and their indices
-[EXrxn, EXrxnIdx] = getExchangeRxns(model);
+% Include named exchange reactions even after a sluice transformation. Such
+% reactions may contain a virtual metabolite and are no longer recognised by
+% exchange-reaction finders that require a single metabolite.
+exchangeIdx = find(startsWith(model.rxns, 'EX_'));
+singleMetIdx = find(full(sum(spones(model.S), 1)) == 1);
+exchangeIdx = unique([exchangeIdx(:); singleMetIdx(:)]);
 
-% 3. Get the carbon numbers for each exchange reaction
-[CarbonNum,EXfors] = getcarbonnum(model,EXrxn);
-
-% 4. Store the carbon numbers for the exchange reactions in the model
-model.excarbon(EXrxnIdx) = CarbonNum;
+for k = exchangeIdx(:)'
+    metIdx = find(model.S(:, k));
+    carbonCounts = NaN(numel(metIdx), 1);
+    for j = 1:numel(metIdx)
+        carbonCounts(j) = carbonFromFormula(model.metFormulas{metIdx(j)});
+    end
+    carbonCounts = carbonCounts(isfinite(carbonCounts));
+    if ~isempty(carbonCounts)
+        % Sluice branches contain the same substrate on both sides, plus
+        % protein pool. Use the substrate's atom count, not their sum.
+        model.excarbon(k) = max(carbonCounts);
+    end
+end
 
 % 5. Get the carbon content for the biomass reaction and update the model
 model.excarbon(strcmp(model.rxns,bioRxn)) = getcarbonnum_for_growth(model, bioRxn);
 
 end
 
-function [CarbonNum,EXfors,changedmets] = getcarbonnum(model,exrxn)
-% getcarbonnum
-%   This function calculates the carbon number for each exchange reaction.
-%   It assumes that the input exchange reactions contain only one metabolite in the equation.
-
-% 1. Find the index of the exchange reactions in the model
-[~,idx] = ismember(exrxn,model.rxns);
-
-% 2. Get the metabolites associated with the exchange reactions
-EXmets = model.S(:,idx);
-
-% 3. Find the metabolites involved in each exchange reaction
-EXmetsIdx = zeros(length(exrxn),1);
-for k = 1:length(EXmets(1,:))
-    EXmetsIdx(k) = find(EXmets(:,k)); 
-end
-
-% 4. Get the formulas of the metabolites
-EXfors = model.metFormulas(EXmetsIdx);
-
-% 5. Calculate the elemental composition for carbon atoms (C) in each metabolite
-[Ematrix, elements] = getElementalComposition(EXfors,{'C'});
-Ematrix = Ematrix(:,1);  % Get the carbon counts
-
-% 6. Identify metabolites without carbon content (invalid entries)
-changedmets = exrxn(isnan(Ematrix));
-
-% 7. Replace missing carbon counts with 1
-Ematrix(isnan(Ematrix)) = 1;
-
-% 8. Return the carbon numbers for each exchange reaction
-CarbonNum = Ematrix';
-
+function nCarbon = carbonFromFormula(formula)
+% Count only the carbon element; e.g. Ca and Co must not count as carbon.
+    if isempty(formula)
+        nCarbon = NaN;
+        return;
+    end
+    parts = regexp(char(formula), '([A-Z][a-z]?)([0-9]*\.?[0-9]*)', 'tokens');
+    nCarbon = 0;
+    for i = 1:numel(parts)
+        if strcmp(parts{i}{1}, 'C')
+            count = str2double(parts{i}{2});
+            if isnan(count), count = 1; end
+            nCarbon = nCarbon + count;
+        end
+    end
 end
 
 function C_Biomass = getcarbonnum_for_growth(model, bioRxnSink)
@@ -112,12 +106,12 @@ total_C = 0;
 % Limit recursion depth to avoid infinite loops (or excessive recursion)
 if depth > 5, return; end 
 
-% 1. Get the formulas of the metabolites
+% 1. Get carbon counts from the metabolite formulas
 formulas = model.metFormulas(metIndices);
-
-% 2. Get the elemental composition for carbon atoms (C) in the metabolites
-[Ematrix, ~] = getElementalComposition(formulas, {'C'});
-C_counts = Ematrix(:, 1);  % Carbon count for each metabolite
+C_counts = NaN(numel(metIndices), 1);
+for i = 1:numel(metIndices)
+    C_counts(i) = carbonFromFormula(formulas{i});
+end
 
 % 3. Loop over each metabolite to calculate its contribution to carbon content
 for i = 1:length(metIndices)

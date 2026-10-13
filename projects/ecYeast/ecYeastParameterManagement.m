@@ -5,7 +5,7 @@ function obj = ecYeastParameterManagement()
 %   The configuration will be available in obj.params
 
     % ===== Project paths =====
-    obj.params.path             = fullfile('C:\chenqilin\projects\ECOMAP', 'projects', 'ecYeast');
+    obj.params.path             = fullfile('D:\project\ECOMAP', 'projects', 'ecYeast');
     obj.params.projectDir       = obj.params.path;
     obj.params.projectJson      = fullfile(obj.params.projectDir, 'project.json');
     obj.params.parameterManager = fullfile(obj.params.projectDir, [mfilename '.m']);

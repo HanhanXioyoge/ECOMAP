@@ -35,10 +35,9 @@ function rmseResult = calculateCalibrationRMSE(ecModel, useConstraint, useUncons
     basePath = parameters.dataDir; org_name = parameters.org_name;
     kcats = ecModel.enzymeConstraints.kcat;
 
-    % [Fix] Pre-calculate Carbon Numbers
-    if ~isfield(ecModel, 'excarbon')
-        ecModel = addCarbonNum(ecModel, bioRxn);
-    end
+    % Recalculate after model transformations so stale exchange weights are
+    % not reused during evaluation.
+    ecModel = addCarbonNum(ecModel, bioRxn);
 
     % Data Loading
     growthData = [];  if useConstraint, growthData = readtable(fullfile(basePath,'BayesianGrowthRates.tsv'), 'FileType', 'text', 'ReadRowNames', true); end

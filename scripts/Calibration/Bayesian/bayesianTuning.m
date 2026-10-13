@@ -1,7 +1,13 @@
-function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesianTuning(ecModel, useConstraint, useUnconstrained, useC13Flux, saveCurrentState, maxIterations, proc, numPerGeneration, rejectNum, initialKcatsInput, parameters)
+function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesianTuning(ecModel, useConstraint, useUnconstrained, useC13Flux, ...
+    saveCurrentState, maxIterations, proc, numPerGeneration, rejectNum, initialKcatsInput, rmseMode, modelname, parameters)
     % 1. Initialization and Data Setup
     % -------------------------------------------------------------------------
-    if nargin < 11 || isempty(parameters), parameters = ParameterManager.getParams(); end
+    if nargin < 13 || isempty(parameters), parameters = ParameterManager.getParams(); end
+    if nargin < 12 || isempty(modelname), modelname = ecModel.id; end
+    if nargin < 11 || isempty(rmseMode)
+        rmseMode = 'flux';
+    end
+    rmseMode = validatestring(rmseMode, {'flux', 'carbon'});
     if nargin < 10 || isempty(initialKcatsInput), initialKcatsInput = ecModel.enzymeConstraints.kcat; end
     
     initialKcats = initialKcatsInput;
@@ -20,12 +26,19 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
     if nargin < 5 || isempty(saveCurrentState), saveCurrentState = true;end
     
     bioRxn = parameters.bioRxn; cSource = parameters.c_source;
-    basePath = parameters.dataDir; analysisPath = parameters.outputDir;
+    basePath = parameters.calibrationDir;
+    basePath = fullfile(basePath, 'data');
+    analysisPath = parameters.calibrationDir;
     org_name = parameters.org_name;
     
-    % [Fix] Pre-calculate Carbon Numbers
-    if ~isfield(ecModel, 'excarbon')
-        ecModel = addCarbonNum(ecModel, bioRxn);
+    % Recalculate after model transformations; a pre-existing excarbon field
+    % may have been built before the sluice branches were added.
+    ecModel = addCarbonNum(ecModel, bioRxn);
+    if strcmp(rmseMode, 'carbon')
+        carbonSourceIdx = find(strcmp(ecModel.rxns, cSource));
+        if isempty(carbonSourceIdx) || any(ecModel.excarbon(carbonSourceIdx) <= 0)
+            error('Carbon count is missing for carbon source %s.', cSource);
+        end
     end
     
     % Determine data combination mode for state file naming
@@ -45,7 +58,14 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
     else
         modeTag = 'ABC_S';         % Constraint only (default)
     end
-    stateFile = fullfile(analysisPath, ['bayesianState_' modeTag '.mat']);
+    % Keep checkpoints made with the previous carbon-count implementation
+    % untouched; their stored RMSE values cannot be reused with this score.
+    stateMode = rmseMode;
+    if strcmp(rmseMode, 'carbon')
+        stateMode = 'carbon_atoms_v2';
+    end
+    stateFile = fullfile(analysisPath, ...
+        [modelname '_bayesianState_' modeTag '_' stateMode '.mat']);
     
     % Data Loading
     growthData = [];  if useConstraint, growthData = readtable(fullfile(basePath,'BayesianGrowthRates.tsv'), 'FileType', 'text', 'ReadRowNames', true); end
@@ -106,7 +126,10 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
     else
         % Initial Run Check
         fprintf('[Init] Running initial baseline check...\n');
-        [BestRMSE, ~, ~] = abc_max(ecModel, kcats, growthData, unconsData, C13Fluxdata, 1, 1, 1, bioRxn, cSource, [], org_name, C13ReactionMap);
+        [BestRMSE, ~, ~] = abc_max(ecModel, kcats, ...
+                growthData, unconsData, C13Fluxdata, ...
+                1, 1, 1, bioRxn, cSource, [], ...
+                org_name, C13ReactionMap, rmseMode);
         WorstRMSE = inf;
         kcat_100 = kcats;
         theta_100 = BestRMSE;
@@ -239,7 +262,11 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
         newRmseCells = cell(proc, 1);
         parfor j = 1:proc
             if ~isempty(kcatBatches{j})
-                [newRmseCells{j}, ~, ~] = abc_max(ecModel, kcatBatches{j}, growthData, unconsData, C13Fluxdata, 1, size(kcatBatches{j}, 2), 1, bioRxn, cSource, [], org_name, C13ReactionMap);
+                [newRmseCells{j},~,~] = abc_max(ecModel, ...
+                    kcatBatches{j}, growthData, unconsData, ...
+                    C13Fluxdata, 1, size(kcatBatches{j},2), ...
+                    1, bioRxn, cSource, [], ...
+                    org_name, C13ReactionMap, rmseMode);
             end
         end
         

@@ -1,6 +1,7 @@
-function [rmse, expFlux, simFlux, matchResult] = rmsecal_13C(ecModel, C13Data, conditionIdx, bioRxn, cSource, C13ReactionMap, varargin)
+function [rmse, expFlux, simFlux, matchResult] = rmsecal_13C(ecModel, C13Data, conditionIdx, bioRxn, cSource, C13ReactionMap, rmseMode, varargin)
 % rmsecal_13C
-%   Calculates RMSE between experimental and simulated 13C flux data.
+% Calculates RMSE between experimental and simulated 13C flux data.
+% Supports raw flux RMSE and carbon-weighted flux RMSE.
 %   Handles all three ecModel types: basic, isozyme, integrated.
 %   Uses pre-built reaction mapping for efficiency.
 %
@@ -19,7 +20,9 @@ function [rmse, expFlux, simFlux, matchResult] = rmsecal_13C(ecModel, C13Data, c
 %   expFlux     - Experimental flux values (matched reactions)
 %   simFlux     - Simulated flux values (matched reactions)
 %   matchResult - Reaction matching result
-
+    if nargin < 7 || isempty(rmseMode)
+        rmseMode = 'flux';
+    end
     p = inputParser;
     addOptional(p, 'verbose', false);
     parse(p, varargin{:});
@@ -144,9 +147,9 @@ function [rmse, expFlux, simFlux, matchResult] = rmsecal_13C(ecModel, C13Data, c
         end
     end
 
-    % --- Step 5: Extract simulated fluxes and calculate carbon-weighted RMSE ---
-    expCarbonFlux = zeros(nMatched, 1);
-    simCarbonFlux = zeros(nMatched, 1);
+    % --- Step 5: Extract simulated fluxes ---
+    expWeightedFlux = zeros(nMatched, 1);
+    simWeightedFlux = zeros(nMatched, 1);
     reactionNames = cell(nMatched, 1);
     resultIdx = 0;
 
@@ -167,9 +170,6 @@ function [rmse, expFlux, simFlux, matchResult] = rmsecal_13C(ecModel, C13Data, c
 
         % Experimental flux
         expNetFlux = expFluxes(i);
-
-        % Calculate experimental carbon flux
-        expCarbonFlux(resultIdx) = expNetFlux * nCarbon;
 
         % Aggregate simulated fluxes from matched reactions
         % User directions: {1} means use model forward direction, {-1} means reverse
@@ -192,14 +192,25 @@ function [rmse, expFlux, simFlux, matchResult] = rmsecal_13C(ecModel, C13Data, c
             end
         end
 
-        % Calculate simulated carbon flux
-        simCarbonFlux(resultIdx) = simNetFlux * nCarbon;
+        % Apply RMSE mode
+        if strcmp(rmseMode,'carbon')
+            
+            % Carbon-weighted flux
+            expWeightedFlux(resultIdx) = expNetFlux * nCarbon;
+            simWeightedFlux(resultIdx) = simNetFlux * nCarbon;
+            
+        else
+            
+            % Raw flux
+            expWeightedFlux(resultIdx) = expNetFlux;
+            simWeightedFlux(resultIdx) = simNetFlux;
+            
+        end
     end
 
-    expFlux = expCarbonFlux;
-    simFlux = simCarbonFlux;
-
-    % Calculate RMSE
+    expFlux = expWeightedFlux;
+    simFlux = simWeightedFlux;
+    
     rmse = sqrt(mean((expFlux - simFlux).^2));
 
     if verbose
