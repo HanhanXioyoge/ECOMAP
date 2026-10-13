@@ -1,5 +1,10 @@
-function [rmse_final, exp_out, sim_out] = abc_max(ecModel, kcat_random_all, growthdata, UnconstrainedGrowth, C13Fluxdata, proc, sample_generation, j, bioRxn, c_source, rxn2block, org_name, C13ReactionMap)
+function [rmse_final, exp_out, sim_out] = abc_max(ecModel, kcat_random_all, growthdata, UnconstrainedGrowth, C13Fluxdata, proc, ...
+    sample_generation, j, bioRxn, c_source, rxn2block, org_name, C13ReactionMap, rmseMode)
 
+    if nargin < 14 || isempty(rmseMode)
+        rmseMode = 'flux';
+    end
+    rmseMode = validatestring(rmseMode, {'flux', 'carbon'});
     nstep = sample_generation / proc;
     rmse_final = zeros(1, nstep);
     kcat_sample = kcat_random_all(:, (j-1)*nstep+1 : j*nstep);
@@ -13,13 +18,13 @@ function [rmse_final, exp_out, sim_out] = abc_max(ecModel, kcat_random_all, grow
         % --- Scenario 1: Constrained Experiments ---
         rmse_1 = NaN; exp_1 = []; sim_1 = [];
         if ~isempty(growthdata)
-            [rmse_1, exp_1, sim_1] = rmsecal(model_k, growthdata, true, bioRxn, c_source, rxn2block, org_name);
+            [rmse_1, exp_1, sim_1] = rmsecal(model_k, growthdata, true, bioRxn, c_source, rxn2block, org_name, rmseMode);
         end
         
         % --- Scenario 2: Unconstrained Experiments ---
         rmse_2 = NaN; exp_2 = []; sim_2 = [];
         if ~isempty(UnconstrainedGrowth)
-            [rmse_2, exp_2, sim_2] = rmsecal(model_k, UnconstrainedGrowth, false, bioRxn, c_source, rxn2block, org_name);
+            [rmse_2, exp_2, sim_2] = rmsecal(model_k, UnconstrainedGrowth, false, bioRxn, c_source, rxn2block, org_name, rmseMode);
         end
 
         % --- Scenario 3: 13C Flux Data ---
@@ -31,7 +36,7 @@ function [rmse_final, exp_out, sim_out] = abc_max(ecModel, kcat_random_all, grow
                 rmse_conditions = zeros(nConditions, 1);
 
                 for condIdx = 1:nConditions
-                    [rmse_c, ~, ~] = rmsecal_13C(model_k, C13Fluxdata, condIdx, bioRxn, c_source, C13ReactionMap);
+                    [rmse_c, ~, ~] = rmsecal_13C(model_k, C13Fluxdata, condIdx, bioRxn, c_source, C13ReactionMap, rmseMode);
                     rmse_conditions(condIdx) = rmse_c;
                 end
 
@@ -87,7 +92,7 @@ function [rmse_final, exp_out, sim_out] = abc_max(ecModel, kcat_random_all, grow
     end
 end
 
-function [rmse, exp_complete, simulated_out] = rmsecal(ecModel, data, constrain, objective, c_source, rxn2block, org_name)
+function [rmse, exp_complete, simulated_out] = rmsecal(ecModel, data, constrain, objective, c_source, rxn2block, org_name, rmseMode)
     % RMSECAL: Calculates Net Carbon Flux RMSE with Circuit Breaker logic.
 
     num_exps = height(data);
@@ -173,17 +178,45 @@ function [rmse, exp_complete, simulated_out] = rmsecal(ecModel, data, constrain,
         % --- 4. CIRCUIT BREAKER & RMSE CALCULATION ---
         if ~isempty(sol.x) && sol.stat == 1
             valid_mask = ~isnan(exp_all(i, :));
-            c_factors = ecModel.excarbon(idx_complete);
-            c_factors(c_factors == 0) = 1; 
-            
-            exp_c_flux = exp_all(i, valid_mask) .* c_factors(valid_mask);
-            sim_c_flux = sol.x(idx_complete(valid_mask))' .* c_factors(valid_mask);
-            
-            rxnblockidx = ismember(model_tmp.rxns, setdiff(rxn2block, model_tmp.rxns(idx_complete(2))));
-            sim_block_c = sol.x(rxnblockidx)' .* ecModel.excarbon(rxnblockidx);
-            
-            % Unified Net Carbon Flux RMSE
-            rmse_vec(i) = sqrt(mean(([exp_c_flux, 0] - [sim_c_flux, sum(sim_block_c)]).^2));
+            % ----------------------------------------------------------
+            % Select RMSE calculation mode
+            % ----------------------------------------------------------
+            if strcmp(rmseMode,'carbon')
+                % Carbon-weighted flux
+                c_factors = ecModel.excarbon(idx_complete);
+                c_factors(c_factors == 0) = 1;
+                exp_flux = exp_all(i,valid_mask) .* c_factors(valid_mask);
+                sim_flux = sol.x(idx_complete(valid_mask))' .* c_factors(valid_mask);
+            else
+                % Raw flux
+                exp_flux = exp_all(i,valid_mask);
+                sim_flux = sol.x(idx_complete(valid_mask))';
+            end
+            % ----------------------------------------------------------
+            % Additional rxn2block carbon leakage term
+            % ----------------------------------------------------------
+            rxnblockidx = ismember( ...
+                model_tmp.rxns, ...
+                setdiff(rxn2block, model_tmp.rxns(idx_complete(2))) ...
+            );
+            if any(rxnblockidx)
+                % Carbon-weighted block flux
+                if strcmp(rmseMode,'carbon')
+                    sim_block = sol.x(rxnblockidx)' .* ...
+                        ecModel.excarbon(rxnblockidx);
+                else
+                    sim_block = sol.x(rxnblockidx)';
+                end
+                % Experimental carbon leakage target = 0
+                rmse_vec(i)=sqrt(mean( ...
+                    ([exp_flux,0]-...
+                     [sim_flux,sum(sim_block)]).^2));
+            else
+                % No rxn2block:
+                % calculate RMSE only from measured carbon-weighted fluxes
+                rmse_vec(i)=sqrt(mean( ...
+                    (exp_flux-sim_flux).^2));
+            end
             simulated_out(i, :) = sol.x(idx_complete)';
         else
             % INFEASIBLE: Set flag and break the experiment loop immediately

@@ -1,33 +1,58 @@
 KO_ID,KO_Name,Subsystems,GrRule
-FUM,fumarase,,Cgl1010
-ADK3,adentylate kinase (GTP),,Cgl0315
-
-UDCPDP,undecaprenyl-diphosphatase,,Cgl1515
-FUM,fumarase,,Cgl1010
+CYTBDpp,cytochrome oxidase bd (ubiquinol-8: 2 protons),,Cgl2194 and Cgl2523 and Cgl2195 and Cgl2192
+CYTBO3_4pp,cytochrome oxidase bo3 (ubiquinol-8: 4 protons),,Cgl2194 and Cgl2523 and Cgl2195 and Cgl2192
 
 FUM,fumarase,,Cgl1010
-UPP3S,uroporphyrinogen-III synthase,,Cgl0429
-
-G3PT,glycerol-3-phosphatase,,Cgl1506
-FUM,fumarase,,Cgl1010
-
-ASNS1,asparagine synthase (glutamine-hydrolysing),,Cgl2196
-FUM,fumarase,,Cgl1010
+LDH,L-lactate dehydrogenase,,Cgl2911
 
 FUM,fumarase,,Cgl1010
+
+IPDDI,isopentenyl-diphosphate D-isomerase,,Cgl2305
+VALTA,valine transaminase,,Cgl2204
+
+GLCP2,glycogen phosphorylase,,Cgl1308 or Cgl2087
+ADK4,adentylate kinase (ITP),,Cgl0315
+
+AGPAT180,1-octadecanoyl-sn-glycerol 3-phosphate O-acyltransferase (n-C18:0),,Cgl2184
+
+G6PDH2r,glucose 6-phosphate dehydrogenase,,Cgl1576
+TALA,transaldolase,,Cgl1575
+
+MALGT,maltose alpha-D-glucosyltransferase,,Cgl2303
+GTHRDHpp,glutathione hydralase,,Cgl0954
 
 RBK,ribokinase,,Cgl1366 or Cgl2325
-FBA,fructose-bisphosphate aldolase,,Cgl2770
+AMPN,AMP nucleosidase,,Cgl0095
 
-G3PAT180,glycerol-3-phosphate acyltransferase (C18:0),,Cgl1392 or Cgl2254 or cg3050 or Cgl2858 or Cgl2892
+ENO,enolase,,Cgl0974
+PDH,pyruvate dehydrogenase,,Cgl1129 and Cgl0366 and Cgl2207 and Cgl2248
+
+GLUTRS,glutamyl-tRNA synthetase,,(Cgl0236 and Cgl1293) or cgtRNA_3556 or cgtRNA_3557 or cgtRNA_3584
+TRPS1,tryptophan synthase (indoleglycerol phosphate),,Cgl3034 and Cgl3035
+
+PGI,glucose-6-phosphate isomerase,,Cgl0851
+FEROpp,ferroxidase,,Cgl2526
+
+PDH,pyruvate dehydrogenase,,Cgl1129 and Cgl0366 and Cgl2207 and Cgl2248
+CYTBO3_4pp,cytochrome oxidase bo3 (ubiquinol-8: 4 protons),,Cgl2194 and Cgl2523 and Cgl2195 and Cgl2192
+
+MALS,malate synthase,,Cgl2330
+RNDR4,ribonucleoside-diphosphate reductase (UDP),,Cgl2525 and Cgl2530
+
+URIDK2r,uridylate kinase (dUMP),,Cgl0753
 GLUTRS,glutamyl-tRNA synthetase,,(Cgl0236 and Cgl1293) or cgtRNA_3556 or cgtRNA_3557 or cgtRNA_3584
 
-MI1PP,myo-inositol 1-phosphatase,,Cgl1909 or Cgl2095
-GLUTRR,glutamyl-tRNA reductase,,Cgl0347
-
-UDCPDP,undecaprenyl-diphosphatase,,Cgl1515
-G3PAT180,glycerol-3-phosphate acyltransferase (C18:0),,Cgl1392 or Cgl2254 or cg3050 or Cgl2858 or Cgl2892
+EAR121x,enoyl-[acyl-carrier-protein] reductase (NADH) (n-C12:1),,Cgl0719
+FBA,fructose-bisphosphate aldolase,,Cgl2770
 
 UGMDDS,"UDP-N-acetylmuramoyl-L-alanyl-D-glutamyl-meso-2,6-diaminopimeloyl-D-alanyl-D-alanine synthetase",,Cgl2162
 GLUTRS,glutamyl-tRNA synthetase,,(Cgl0236 and Cgl1293) or cgtRNA_3556 or cgtRNA_3557 or cgtRNA_3584
+
+NADH16pp,NADH dehydrogenase (ubiquinone-8 & 3 protons),,Cgl2729 and Cgl2731 and Cgl0269
+TRPS1,tryptophan synthase (indoleglycerol phosphate),,Cgl3034 and Cgl3035
+
+GLUTRR,glutamyl-tRNA reductase,,Cgl0347
+
+UDCPDP,undecaprenyl-diphosphatase,,Cgl1515
+PPBNGS,porphobilinogen synthase,,Cgl0431
 

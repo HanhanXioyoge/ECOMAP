@@ -5,7 +5,7 @@ function obj = eciCW773ParameterManagement()
 %   The configuration will be available in obj.params
 
     % ===== Project paths =====
-    obj.params.path             = fullfile('C:\chenqilin\projects\ECOMAP', 'projects', 'eciCW773');
+    obj.params.path             = fullfile('D:\project\ECOMAP', 'projects', 'eciCW773');
     obj.params.projectDir       = obj.params.path;
     obj.params.projectJson      = fullfile(obj.params.projectDir, 'project.json');
     obj.params.parameterManager = fullfile(obj.params.projectDir, [mfilename '.m']);
