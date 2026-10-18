@@ -62,7 +62,7 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
     % untouched; their stored RMSE values cannot be reused with this score.
     stateMode = rmseMode;
     if strcmp(rmseMode, 'carbon')
-        stateMode = 'carbon_atoms_v2';
+        stateMode = 'carbon';
     end
     stateFile = fullfile(analysisPath, ...
         [modelname '_bayesianState_' modeTag '_' stateMode '.mat']);
