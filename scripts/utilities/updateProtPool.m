@@ -21,19 +21,27 @@ function model = updateProtPool(model, updateFfactor, Ptot, f, sigma, parameters
 %   model = updateProtPool(model, updateFfactor, Ptot, f, sigma, parameters);
 
     % ------------------------- Parameter Defaults -------------------------
-    % Ensure parameters are set if not provided
+
+    % 1) Load parameters only when necessary
     if nargin < 6 || isempty(parameters)
-        parameters = ParameterManager.getParams();
-        if isempty(parameters)
-            error('ParameterManager is not set.');
+        if nargin >= 5 && ~isempty(sigma) && ...
+                ~isempty(f) && ~isempty(Ptot) && ~isempty(updateFfactor) && ~isempty(model)
+            parameters = struct();
+        else
+            parameters = ParameterManager.getParams();
+            if isempty(parameters)
+                error('ParameterManager is not set.')
+            end
         end
     end
-    
-    % Check if the data directory is provided
-    if ~isfield(parameters, 'reconstructionDir') || isempty(parameters.reconstructionDir)
-        error('parameters.reconstructionDir is required and must point to the folder containing CSV files.');
+
+    % Check reconstructionDir only when updating f-factor from proteomics data
+    if updateFfactor
+        if ~isfield(parameters, 'reconstructionDir') || isempty(parameters.reconstructionDir)
+            error('parameters.reconstructionDir is required when updateFfactor is true.');
+        end
+        reconstructionDir = parameters.reconstructionDir;
     end
-    reconstructionDir = parameters.reconstructionDir;
     
     % Set default values for optional inputs
     if nargin < 2 || isempty(updateFfactor)

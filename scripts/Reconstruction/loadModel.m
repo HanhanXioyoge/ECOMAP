@@ -12,11 +12,16 @@ function model = loadModel(filename, modeltype, modelDir, parameters)
 %   attempt to resolve relative filenames against modelDir. Loading and standardizing
 %   steps are wrapped to provide clearer error messages.
 
-    % 1) Load parameters once
+    % 1) Load parameters only when necessary
     if nargin < 4 || isempty(parameters)
-        parameters = ParameterManager.getParams();
-        if isempty(parameters)
-            error('ParameterManager is not set.')
+        if nargin >= 3 && ~isempty(filename) && ...
+                ~isempty(modeltype) && ~isempty(modelDir)
+            parameters = struct();
+        else
+            parameters = ParameterManager.getParams();
+            if isempty(parameters)
+                error('ParameterManager is not set.')
+            end
         end
     end
 

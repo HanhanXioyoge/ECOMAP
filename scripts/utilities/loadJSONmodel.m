@@ -29,7 +29,7 @@ function model = loadJSONmodel(model, filename)
     % Get reaction names, gene-reaction rules, and build the reaction-gene matrix
     model.rxnNames = cellfun(@(x) x.name, data.reactions, 'UniformOutput', false);
     model.grRules = cellfun(@(x) x.gene_reaction_rule, data.reactions, 'UniformOutput', false);
-    [model.rxnGeneMat, model.rules] = buildRxnGeneMat(model);
+    model.rxnGeneMat = buildRxnGeneMat(model.genes, model.grRules);
     % model.subSystems = {};  % To be determined
     model.eccodes = [];
     % model.eccodes = buildEccodes(data.reactions);
@@ -88,7 +88,7 @@ function model = loadJSONmodel(model, filename)
     
     % Build reaction-enzyme association matrix using gene-reaction rules
     % Use model.genes (not model.enzymeConstraints.genes as it is not created yet)
-    [rxnEnzMat, ~] = buildRxnGeneMat(model);
+    rxnEnzMat = buildRxnGeneMat(model.genes, model.grRules(rxnIdx));
     
     % Extract EC codes corresponding to each enzyme-constrained reaction
     %{
