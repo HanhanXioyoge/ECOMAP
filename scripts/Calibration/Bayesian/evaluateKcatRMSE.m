@@ -1,4 +1,4 @@
-function [rmse_final, exp_out, sim_out] = evaluateKcatRMSE(ecModel, growthdata, UnconstrainedGrowth, C13Fluxdata, bioRxn, c_source, rxn2block, org_name, C13ReactionMap)
+function [rmse_final, exp_out, sim_out] = evaluateKcatRMSE(ecModel, growthdata, UnconstrainedGrowth, C13Fluxdata, bioRxn, c_source, rxn2block, org_name, C13ReactionMap, rmseMode)
 % EVALUATEKCATRSE Calculate RMSE using calibrated kcat values in ecModel
 %   Directly uses ecModel.enzymeConstraints.kcat without UpdateSmatrix
 %   Carbon sources are closed once at the beginning
@@ -26,13 +26,13 @@ function [rmse_final, exp_out, sim_out] = evaluateKcatRMSE(ecModel, growthdata, 
     % --- Scenario 1: Constrained Growth Experiments ---
     rmse_1 = NaN; exp_1 = []; sim_1 = [];
     if ~isempty(growthdata)
-        [rmse_1, exp_1, sim_1] = rmsecal(ecModel, growthdata, true, bioRxn, c_source, rxn2block, org_name);
+        [rmse_1, exp_1, sim_1] = rmsecal(ecModel, growthdata, true, bioRxn, c_source, rxn2block, org_name, rmseMode);
     end
 
     % --- Scenario 2: Unconstrained Growth Experiments ---
     rmse_2 = NaN; exp_2 = []; sim_2 = [];
     if ~isempty(UnconstrainedGrowth)
-        [rmse_2, exp_2, sim_2] = rmsecal(ecModel, UnconstrainedGrowth, false, bioRxn, c_source, rxn2block, org_name);
+        [rmse_2, exp_2, sim_2] = rmsecal(ecModel, UnconstrainedGrowth, false, bioRxn, c_source, rxn2block, org_name, rmseMode);
     end
 
     % --- Scenario 3: 13C Flux Data ---
@@ -42,7 +42,7 @@ function [rmse_final, exp_out, sim_out] = evaluateKcatRMSE(ecModel, growthdata, 
             nConditions = length(C13Fluxdata.conditions);
             rmse_conditions = zeros(nConditions, 1);
             for condIdx = 1:nConditions
-                [rmse_c, ~, ~] = rmsecal_13C(ecModel, C13Fluxdata, condIdx, bioRxn, c_source, C13ReactionMap);
+                [rmse_c, ~, ~] = rmsecal_13C(ecModel, C13Fluxdata, condIdx, bioRxn, c_source, C13ReactionMap, rmseMode);
                 rmse_conditions(condIdx) = rmse_c;
             end
             rmse_3 = mean(rmse_conditions(~isnan(rmse_conditions)));

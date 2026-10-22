@@ -1,4 +1,4 @@
-function rmseResult = calculateCalibrationRMSE(ecModel, useConstraint, useUnconstrained, useC13Flux, modeltype, parameters)
+function rmseResult = calculateCalibrationRMSE(ecModel, useConstraint, useUnconstrained, useC13Flux, bioRxn, cSource, basePath, org_name, modeltype, rmseMode, parameters)
 % calculateCalibrationRMSE
 %   Calculates comprehensive RMSE between experimental and simulated calibration data.
 %   Supports three data types: constraint growth data, unconstrained growth data, and 13C flux.
@@ -29,10 +29,30 @@ function rmseResult = calculateCalibrationRMSE(ecModel, useConstraint, useUncons
 %
 % Example:
 
-    if nargin < 6 || isempty(parameters), parameters = ParameterManager.getParams(); end
+    if nargin < 11 || isempty(parameters)
+        if nargin >= 10 && ...
+                ~isempty(bioRxn) && ...
+                ~isempty(cSource) && ...
+                ~isempty(basePath) && ...
+                ~isempty(org_name) && ...
+                ~isempty(modeltype) && ...
+                ~isempty(rmseMode)
+            parameters = struct();
+        else
+            error('Please provide all required inputs or initialize ParameterManager.');
+        end
+    end
 
-    bioRxn = parameters.bioRxn; cSource = parameters.c_source;
-    basePath = parameters.dataDir; org_name = parameters.org_name;
+    if nargin < 10 || isempty(rmseMode)
+        rmseMode = 'flux';
+    end
+    
+    if nargin < 5 || isempty(bioRxn), bioRxn = parameters.bioRxn; end
+    if nargin < 6 || isempty(cSource), cSource = parameters.c_source; end
+    if nargin < 7 || isempty(basePath), basePath = parameters.dataDir; end
+    if nargin < 8 || isempty(org_name), org_name = parameters.org_name; end
+    if nargin < 9 || isempty(modeltype), modeltype = 'Bayesian'; end
+    
     kcats = ecModel.enzymeConstraints.kcat;
 
     % Recalculate after model transformations so stale exchange weights are
@@ -60,15 +80,15 @@ function rmseResult = calculateCalibrationRMSE(ecModel, useConstraint, useUncons
     end
     if ismember(modeltype, ["ECMpy", "GECKO", "PRESTO"])
         % Use simplified RMSE evaluation for calibrated models
-        [RMSE_con, ~, ~]    = evaluateKcatRMSE(ecModel, growthData, [], [], bioRxn, cSource, [], org_name, C13ReactionMap);
-        [RMSE_uncon, ~, ~]  = evaluateKcatRMSE(ecModel, [], unconsData, [], bioRxn, cSource, [], org_name, C13ReactionMap);
-        [RMSE_13C, ~, ~]    = evaluateKcatRMSE(ecModel, [], [], C13Fluxdata, bioRxn, cSource, [], org_name, C13ReactionMap);
-        [RMSE_final, ~, ~]  = evaluateKcatRMSE(ecModel, growthData, unconsData, C13Fluxdata, bioRxn, cSource, [], org_name, C13ReactionMap);
+        [RMSE_con, ~, ~]    = evaluateKcatRMSE(ecModel, growthData, [], [], bioRxn, cSource, [], org_name, C13ReactionMap, rmseMode);
+        [RMSE_uncon, ~, ~]  = evaluateKcatRMSE(ecModel, [], unconsData, [], bioRxn, cSource, [], org_name, C13ReactionMap, rmseMode);
+        [RMSE_13C, ~, ~]    = evaluateKcatRMSE(ecModel, [], [], C13Fluxdata, bioRxn, cSource, [], org_name, C13ReactionMap, rmseMode);
+        [RMSE_final, ~, ~]  = evaluateKcatRMSE(ecModel, growthData, unconsData, C13Fluxdata, bioRxn, cSource, [], org_name, C13ReactionMap, rmseMode);
     else
-        [RMSE_con, ~, ~]    = abc_max(ecModel, kcats, growthData, [], [], 1, 1, 1, bioRxn, cSource, [], org_name, C13ReactionMap);
-        [RMSE_uncon, ~, ~]  = abc_max(ecModel, kcats, [], unconsData, [], 1, 1, 1, bioRxn, cSource, [], org_name, C13ReactionMap);
-        [RMSE_13C, ~, ~]    = abc_max(ecModel, kcats, [], [], C13Fluxdata, 1, 1, 1, bioRxn, cSource, [], org_name, C13ReactionMap);
-        [RMSE_final, ~, ~]  = abc_max(ecModel, kcats, growthData, unconsData, C13Fluxdata, 1, 1, 1, bioRxn, cSource, [], org_name, C13ReactionMap);
+        [RMSE_con, ~, ~]    = abc_max(ecModel, kcats, growthData, [], [], 1, 1, 1, bioRxn, cSource, [], org_name, C13ReactionMap, rmseMode);
+        [RMSE_uncon, ~, ~]  = abc_max(ecModel, kcats, [], unconsData, [], 1, 1, 1, bioRxn, cSource, [], org_name, C13ReactionMap, rmseMode);
+        [RMSE_13C, ~, ~]    = abc_max(ecModel, kcats, [], [], C13Fluxdata, 1, 1, 1, bioRxn, cSource, [], org_name, C13ReactionMap, rmseMode);
+        [RMSE_final, ~, ~]  = abc_max(ecModel, kcats, growthData, unconsData, C13Fluxdata, 1, 1, 1, bioRxn, cSource, [], org_name, C13ReactionMap, rmseMode);
     end
 
     rmseResult.rmseConstraint = RMSE_con;
@@ -76,8 +96,3 @@ function rmseResult = calculateCalibrationRMSE(ecModel, useConstraint, useUncons
     rmseResult.rmse13C = RMSE_13C;
     rmseResult.rmseTotal = RMSE_final;
 end
-
-
-
-
-
