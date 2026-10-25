@@ -38,7 +38,8 @@ function obj = eciCW773ParameterManagement()
 
     % ===== Core reaction IDs =====
     obj.params.c_source = 'EX_glc_e';                           % Carbon source exchange reaction
-    obj.params.bioRxn   = 'CG_biomass_cgl_ATCC13032';                           % Biomass reaction ID
+    % obj.params.bioRxn   = 'CG_biomass_cgl_ATCC13032';                           % Biomass reaction ID
+    obj.params.bioRxn   = 'biomass';                             % Biomass reaction ID
 
     % ===== PRESTO OPTION  =====
     % Specify whether the approach should be run parallelized

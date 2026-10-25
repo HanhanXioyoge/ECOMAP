@@ -5,7 +5,7 @@ function obj = eciML1515ParameterManagement()
 %   The configuration will be available in obj.params
 
     % ===== Project paths =====
-    obj.params.path             = fullfile('C:\chenqilin\projects\ECOMAP', 'projects', 'eciML1515');
+    obj.params.path             = fullfile('D:\project\ECOMAP', 'projects', 'eciML1515');
     obj.params.projectDir       = obj.params.path;
     obj.params.projectJson      = fullfile(obj.params.projectDir, 'project.json');
     obj.params.parameterManager = fullfile(obj.params.projectDir, [mfilename '.m']);
