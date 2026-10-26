@@ -1,4 +1,4 @@
-Type	RxnName	Coefficient	Carbon	Cond1	Cond2	Cond3	Cond4	Cond5	Cond6	Cond7	Cond8	Cond9	Cond10
+Type	RxnName	Direction	Carbon	Cond1	Cond2	Cond3	Cond4	Cond5	Cond6	Cond7	Cond8	Cond9	Cond10
 constraint	biomass			0.04 	0.05 	0.06 	0.08 	0.09 	0.11 	0.18 	0.28 	0.31 	0.41 
 constraint	EX_glc__D_e			-0.90 	-1.16 	-1.11 	-1.67 	-1.80 	-1.98 	-2.80 	-4.22 	-4.59 	-5.84 
 constraint	EX_ac_e			0.00 	0.00 	0.00 	0.00 	0.00 	0.00 	0.00 	0.00 	0.00 	0.00 
