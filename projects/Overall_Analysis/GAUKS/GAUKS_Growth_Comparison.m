@@ -1,7 +1,5 @@
 %% Compare growth experiment predictions before and after GAUKS
-
 %% Load models
-
 eciML1515_Location = fullfile(findECOMAProot, 'projects', 'eciML1515');
 eciML1515_models_Location = fullfile(eciML1515_Location, 'models');
 eciML1515_kcatRepo_Location = fullfile(eciML1515_Location, 'calibration');
