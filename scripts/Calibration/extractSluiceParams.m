@@ -1,6 +1,6 @@
 function sluiceParams = extractSluiceParams(ecModel, ex_rxn_list, prot_pool)
 % EXTRACTSLUICEPARAMS
-%   Extract Umin and Xi values from a model with sluice structure.
+%   Extract Umin, pre-GAUKS Qmax, and Xi from a model with sluice structure.
 %
 % Input:
 %   ecModel     - Model with sluice structure (from applySluiceStructure)
@@ -8,7 +8,7 @@ function sluiceParams = extractSluiceParams(ecModel, ex_rxn_list, prot_pool)
 %   prot_pool   - Protein pool name (default: 'prot_pool')
 %
 % Output:
-%   sluiceParams - struct with fields {reactions, umin, xi}
+%   sluiceParams - struct with fields {reactions, umin, qmax, xi}
 %
 % Usage:
 %   % Extract parameters from calibrated models
@@ -28,6 +28,7 @@ function sluiceParams = extractSluiceParams(ecModel, ex_rxn_list, prot_pool)
 
     nRxns = length(ex_rxn_list);
     umin = zeros(nRxns, 1);
+    qmax = NaN(nRxns, 1);
     xi = zeros(nRxns, 1);
 
     fprintf('[extractSluiceParams] Extracting %d reactions...\n', nRxns);
@@ -59,6 +60,12 @@ function sluiceParams = extractSluiceParams(ecModel, ex_rxn_list, prot_pool)
             continue;
         end
 
+        % A calibrated extended bound is -(QmaxPre - Umin). The original
+        % -1000 placeholder means Qmax was not recorded in this model.
+        if ecModel.lb(extIdx) > -1000 + 1e-7
+            qmax(i) = umin(i) - ecModel.lb(extIdx);
+        end
+
         protRow = find(strcmp(ecModel.mets, prot_pool));
         if ~isempty(protRow)
             xi(i) = ecModel.S(protRow, extIdx);
@@ -66,13 +73,14 @@ function sluiceParams = extractSluiceParams(ecModel, ex_rxn_list, prot_pool)
             xi(i) = NaN;
         end
 
-        fprintf('  %s: Umin=%.4f, Xi=%.4f\n', ex_rxn, umin(i), xi(i));
+        fprintf('  %s: Umin=%.4f, Qmax=%.4f, Xi=%.4f\n', ex_rxn, umin(i), qmax(i), xi(i));
     end
 
     % Create struct with proper dimensions
     sluiceParams = struct();
     sluiceParams.reactions = ex_rxn_list(:)';  % Ensure row vector
     sluiceParams.umin = umin(:)';               % Ensure row vector
+    sluiceParams.qmax = qmax(:)';
     sluiceParams.xi = xi(:)';
 
     fprintf('[extractSluiceParams] Done.\n');

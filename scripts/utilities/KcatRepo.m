@@ -1,6 +1,6 @@
 classdef KcatRepo < handle
 % KCATREPO
-%   A lightweight repository for storing multiple kcat vectors with Umin and Xi values for ONE model.
+%   A lightweight repository for storing multiple kcat vectors with sluice parameters for ONE model.
 %   Stored data fields are minimal and stable for later statistics:
 %     - modelName : string
 %     - organism  : string
@@ -12,6 +12,7 @@ classdef KcatRepo < handle
 %   The sluiceParams field is a struct with fields:
 %     - reactions: cell array of exchange reaction names (e.g., {'EX_glc__D_e', ...})
 %     - umin: numeric array of Umin values for each reaction
+%     - qmax: optional pre-GAUKS maximum uptake for each reaction
 %     - xi: numeric array of Xi (proteomic cost) values for each reaction
 %
 %   Recommended usage:
@@ -35,14 +36,15 @@ classdef KcatRepo < handle
 
         function addGroup(obj, name, kcatVec, sluiceParams, method, dataTag, overwrite)
             % ADDGROUP
-            %   Add/replace a named kcat vector with corresponding sluice parameters (Umin + Xi).
+            %   Add/replace a named kcat vector with corresponding sluice parameters.
             %
             % INPUT
             %   name      : group name, e.g. "Init", "Bayes_Total", "GAUKS_afterBayes"
             %   kcatVec   : numeric vector (will be stored as a column)
-            %   sluiceParams: struct with fields {reactions, umin, xi}
+            %   sluiceParams: struct with fields {reactions, umin, qmax, xi}
             %               - reactions: cell array of exchange reaction names
             %               - umin: numeric array of Umin values for each reaction
+            %               - qmax: optional pre-GAUKS maximum uptake values
             %               - xi: numeric array of Xi (proteomic cost) values
             %               Pass empty [] if no sluice params (e.g., initial kcat)
             %   method    : method name for note (string)
@@ -52,7 +54,7 @@ classdef KcatRepo < handle
             if nargin < 7 || isempty(overwrite), overwrite = false; end
             if nargin < 6, dataTag = ""; end
             if nargin < 5, method  = ""; end
-            if nargin < 4, sluiceParams = struct('reactions',{{}}, 'umin',[], 'xi',[]); end
+            if nargin < 4, sluiceParams = struct('reactions',{{}}, 'umin',[], 'qmax',[], 'xi',[]); end
 
             name   = string(name);
             method = string(method);
@@ -65,13 +67,27 @@ classdef KcatRepo < handle
 
             % Validate sluiceParams
             if isempty(sluiceParams)
-                sluiceParams = struct('reactions',{{}}, 'umin',[], 'xi',[]);
+                sluiceParams = struct('reactions',{{}}, 'umin',[], 'qmax',[], 'xi',[]);
             elseif ~isstruct(sluiceParams) || ~isfield(sluiceParams, 'reactions')
                 error('KcatRepo:addGroup', 'sluiceParams must be a struct with fields "reactions", "umin", and "xi".');
             end
             % Ensure xi field exists
             if ~isfield(sluiceParams, 'xi')
                 sluiceParams.xi = [];
+            end
+            % Older repositories have no Qmax; keep their existing bounds.
+            if ~isfield(sluiceParams, 'qmax')
+                sluiceParams.qmax = [];
+            end
+            if ~isempty(sluiceParams.qmax) && ...
+                    (~isnumeric(sluiceParams.qmax) || ...
+                     numel(sluiceParams.qmax) ~= numel(sluiceParams.reactions))
+                error('KcatRepo:addGroup', 'qmax must have one numeric value per reaction.');
+            end
+            if ~isempty(sluiceParams.qmax) && ...
+                    any(isfinite(sluiceParams.qmax(:)) & ...
+                        sluiceParams.qmax(:) < sluiceParams.umin(:))
+                error('KcatRepo:addGroup', 'Each finite qmax must be at least its umin.');
             end
 
             % Enforce consistent length across groups (so later stats are easy)
@@ -101,11 +117,11 @@ classdef KcatRepo < handle
 
         function [kcatVec, sluiceParams] = getGroup(obj, name)
             % GETGROUP
-            %   Retrieve kcat vector and corresponding sluice parameters (Umin + Xi).
+            %   Retrieve kcat vector and corresponding sluice parameters.
             %
             % OUTPUT
             %   kcatVec      : numeric vector
-            %   sluiceParams : struct with fields {reactions, umin, xi}
+            %   sluiceParams : struct with fields {reactions, umin, qmax, xi}
             name = string(name);
             idx = find(strcmp(string({obj.groups.name}), name), 1);
             if isempty(idx)
@@ -117,7 +133,7 @@ classdef KcatRepo < handle
 
         function model = applyGroupToModel(obj, name, baseModel)
             % APPLYGROUPTOMODEL
-            %   Apply a saved kcat set and sluice parameters (Umin + Xi) to a model.
+            %   Apply a saved kcat set and sluice parameters to a model.
             %
             %   INPUT
             %   name      : group name to retrieve
@@ -150,6 +166,16 @@ classdef KcatRepo < handle
                     umin_val = sluiceParams.umin(i);
                     xi_val = sluiceParams.xi(i);
                     model = setSluiceParams(model, ex_rxn, umin_val, xi_val);
+                    if isfield(sluiceParams, 'qmax') && numel(sluiceParams.qmax) >= i
+                        qmax_val = sluiceParams.qmax(i);
+                        if isfinite(qmax_val) && qmax_val >= umin_val
+                            extIdx = strcmp(model.rxns, [ex_rxn '_extended']);
+                            if nnz(extIdx) ~= 1
+                                error('KcatRepo:applyGroupToModel', 'Extended reaction for %s is missing or duplicated.', ex_rxn);
+                            end
+                            model.lb(extIdx) = -(qmax_val - umin_val);
+                        end
+                    end
                 end
             end
         end

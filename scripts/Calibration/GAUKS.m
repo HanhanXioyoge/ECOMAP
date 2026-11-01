@@ -1,10 +1,10 @@
 function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, GEM, bioRxn_GEM, AnaerobicModel, parameters)
 % GAUKS: Global Aerobic/Anaerobic Uptake Kinetic Calibration
-% This function calibrates enzyme-constrained models by setting Umin values
-% for pre-structured exchange reactions (from applySluiceStructure).
+% This function calibrates Umin, pre-GAUKS Qmax, and Xi for pre-structured
+% exchange reactions (from applySluiceStructure).
 %
 % IMPORTANT: This function assumes the sluice structure has already been
-% applied using applySluiceStructure(). It only probes Umin and calibrates.
+% applied using applySluiceStructure().
 %
 % Usage:
 %   1. Apply structure BEFORE calibration:
@@ -37,8 +37,12 @@ function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, GEM, 
     % Initialize Summary Table with new result columns
     summaryTbl = T;
     summaryTbl.Umin           = zeros(height(T), 1);
+    summaryTbl.QmaxPre        = NaN(height(T), 1);
+    summaryTbl.ExtendedCapacity = NaN(height(T), 1);
+    summaryTbl.QmaxStatus     = repmat("NotComputed", height(T), 1);
     summaryTbl.ProteomicCost  = zeros(height(T), 1); % This is the 'xi' value (proteomic cost)
     summaryTbl.Error_Percent  = zeros(height(T), 1);
+    summaryTbl.XiStatus       = repmat("NotComputed", height(T), 1);
 
     ex_o2              = T.Properties.VariableNames{9};
     exchange_reactions = T{:,1};
@@ -98,7 +102,7 @@ function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, GEM, 
         fprintf('[GAUKS] All conditions are feasible. Proceeding...\n');
     end
 
-    %% 2. Phase 1: Probing Umin (Structure already applied!)
+    %% 2. Probe Umin and pre-GAUKS Qmax (structure already applied)
     % Note: Structure is assumed to be pre-applied via applySluiceStructure()
     for i = 1:numel(uniqueExRxns)
         ex_rxn = uniqueExRxns{i};
@@ -114,13 +118,31 @@ function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, GEM, 
                 summaryTbl.Umin(idxAeroRows) = NaN;
                 summaryTbl.ProteomicCost(idxAeroRows) = NaN;
                 summaryTbl.Error_Percent(idxAeroRows) = NaN;
+                summaryTbl.QmaxStatus(idxAeroRows) = "PrecheckFailed";
+                summaryTbl.XiStatus(idxAeroRows) = "PrecheckFailed";
             else
                 fprintf('[GAUKS] Probing Umin: %s (Aerobic)\n', ex_rxn);
                 umin_aero = probeUmin(ecModel, GEM, ex_rxn, currentMu, 'aerobic', bioRxn_GEM, ex_o2);
                 % Record Umin
                 summaryTbl.Umin(idxAeroRows) = umin_aero;
-                % Apply Umin to the pre-structured model
-                ecModel_aerobic = setUmin(ecModel_aerobic, ex_rxn, umin_aero, prot_pool);
+                if isfinite(umin_aero)
+                    % Probe maximum uptake in the pre-GAUKS ecGEM without a growth target.
+                    [qmax, qmaxStatus] = probeQmax(ecModel, ex_rxn);
+                    summaryTbl.QmaxStatus(idxAeroRows) = qmaxStatus;
+                    ecModel_aerobic = setUmin(ecModel_aerobic, ex_rxn, umin_aero, prot_pool);
+                    if isfinite(qmax) && qmax >= umin_aero - 1e-7
+                        capacity = max(0, qmax - umin_aero);
+                        extIdx = strcmp(ecModel_aerobic.rxns, [ex_rxn '_extended']);
+                        ecModel_aerobic.lb(extIdx) = -capacity;
+                        summaryTbl.QmaxPre(idxAeroRows) = qmax;
+                        summaryTbl.ExtendedCapacity(idxAeroRows) = capacity;
+                    else
+                        if isfinite(qmax), summaryTbl.QmaxStatus(idxAeroRows) = "BelowUmin"; end
+                    end
+                else
+                    summaryTbl.QmaxStatus(idxAeroRows) = "UminFailed";
+                    summaryTbl.XiStatus(idxAeroRows) = "UminFailed";
+                end
             end
         end
 
@@ -135,12 +157,29 @@ function [ecModel_aerobic, ecModel_anaerobic, summaryTbl] = GAUKS(ecModel, GEM, 
                     summaryTbl.Umin(idxAnaRows) = NaN;
                     summaryTbl.ProteomicCost(idxAnaRows) = NaN;
                     summaryTbl.Error_Percent(idxAnaRows) = NaN;
+                    summaryTbl.QmaxStatus(idxAnaRows) = "PrecheckFailed";
+                    summaryTbl.XiStatus(idxAnaRows) = "PrecheckFailed";
                 else
                     fprintf('[GAUKS] Probing Umin: %s (Anaerobic)\n', ex_rxn);
-                    umin_ana = probeUmin(initial_anaerobic, ex_rxn, mu_anaero, 'anaerobic', bioRxn, ex_o2);
+                    umin_ana = probeUmin(initial_anaerobic, GEM, ex_rxn, mu_anaero, 'anaerobic', bioRxn_GEM, ex_o2);
                     summaryTbl.Umin(idxAnaRows) = umin_ana;
-                    % Apply Umin to the pre-structured model
-                    ecModel_anaerobic = setUmin(ecModel_anaerobic, ex_rxn, umin_ana, prot_pool);
+                    if isfinite(umin_ana)
+                        [qmax, qmaxStatus] = probeQmax(initial_anaerobic, ex_rxn);
+                        summaryTbl.QmaxStatus(idxAnaRows) = qmaxStatus;
+                        ecModel_anaerobic = setUmin(ecModel_anaerobic, ex_rxn, umin_ana, prot_pool);
+                        if isfinite(qmax) && qmax >= umin_ana - 1e-7
+                            capacity = max(0, qmax - umin_ana);
+                            extIdx = strcmp(ecModel_anaerobic.rxns, [ex_rxn '_extended']);
+                            ecModel_anaerobic.lb(extIdx) = -capacity;
+                            summaryTbl.QmaxPre(idxAnaRows) = qmax;
+                            summaryTbl.ExtendedCapacity(idxAnaRows) = capacity;
+                        else
+                            if isfinite(qmax), summaryTbl.QmaxStatus(idxAnaRows) = "BelowUmin"; end
+                        end
+                    else
+                        summaryTbl.QmaxStatus(idxAnaRows) = "UminFailed";
+                        summaryTbl.XiStatus(idxAnaRows) = "UminFailed";
+                    end
                 end
             end
         end
@@ -192,6 +231,41 @@ function feasible = checkFeasibility(model, ex_rxn, targetMu, mode, bioRxn, ex_o
     feasible = ~isempty(sol.x) && sol.stat == 1;
 end
 
+function [qmax, status] = probeQmax(model, ex_rxn)
+    % Probe the pre-GAUKS ecGEM uptake range without constraining growth.
+    % Only the target exchange search bound is opened on this local copy.
+    qmax = NaN;
+    status = "SolveFailed";
+    exIdx = strcmp(model.rxns, ex_rxn);
+    protRow = strcmp(model.mets, 'prot_pool');
+    if ~any(exIdx) || ~any(protRow)
+        status = "MissingReaction";
+        return;
+    end
+    if nnz(strcmp(model.rxns, [ex_rxn '_basal'])) ~= 1 || ...
+            nnz(strcmp(model.rxns, [ex_rxn '_extended'])) ~= 1
+        status = "MissingSluice";
+        return;
+    end
+    model.lb(exIdx) = -1000;
+    model.c(:) = 0;
+    model.c(exIdx) = -1; % Maximizing -v_EX maximizes uptake.
+    sol = solveLP(model);
+    if isempty(sol.x) || sol.stat ~= 1
+        return;
+    end
+    qmax = -sol.x(exIdx);
+    if ~isfinite(qmax) || qmax < 0 || qmax > 1000 + 1e-6
+        qmax = NaN;
+        status = "InvalidFlux";
+    elseif qmax >= 1000 - 1e-6
+        qmax = 1000;
+        status = "BoundAt1000";
+    else
+        status = "Solved";
+    end
+end
+
 function umin = probeUmin(model, GEM, ex_rxn, targetMu, mode, bioRxn_GEM, ex_o2)
     % ---------------------------------------------------------------------
     % GAUKS Module: Absolute Stoichiometric Minimum Probing
@@ -204,10 +278,9 @@ function umin = probeUmin(model, GEM, ex_rxn, targetMu, mode, bioRxn_GEM, ex_o2)
         GEM.lb(strcmp(GEM.rxns, ex_o2)) = 0; 
     end
     
-    % Fix growth rate with high precision in the base GEM
+    % Use the ecGEM pre-check growth target for the GEM Umin probe.
     bioRxn_GEM = strcmp(GEM.rxns, bioRxn_GEM);
-    GEM.lb(bioRxn_GEM) = targetMu * 0.999;
-    GEM.ub(bioRxn_GEM) = targetMu * 1.001;
+    GEM.lb(bioRxn_GEM) = targetMu;
     
     % Minimize substrate absorption (Maximize exchange flux)
     GEM.c(:) = 0;
@@ -221,7 +294,7 @@ function umin = probeUmin(model, GEM, ex_rxn, targetMu, mode, bioRxn_GEM, ex_o2)
     % Safety check: If the base GEM itself cannot reach TargetMu
     if isempty(sol1.x) || sol1.stat ~= 1
         fprintf('[GAUKS Warning] Base GEM cannot achieve TargetMu = %.4f.\n', targetMu);
-        umin = 1e-5; 
+        umin = NaN;
         return; 
     end
     
@@ -248,19 +321,25 @@ function [model, T] = calibrateModelMode(model, T, mode, bioRxn, failedSet)
             fprintf('[GAUKS] Skipping calibration for infeasible condition: %s\n', condKey);
             continue;
         end
+        if ~isfinite(T.Umin(idxRows(1)))
+            T.ProteomicCost(idxRows) = NaN;
+            T.Error_Percent(idxRows) = NaN;
+            continue;
+        end
 
         fprintf('[GAUKS] Calibrating %s for %s mode (TargetMu: %.3f)...\n', ex_rxn, mode, targetMu);
 
-        [model, bestXi, finalMu] = bisectionXi(model, ex_rxn, targetMu, bioRxn);
+        [model, bestXi, finalMu, xiStatus] = bisectionXi(model, ex_rxn, targetMu, bioRxn);
 
         % Populate Summary Table
         T.ProteomicCost(idxRows) = bestXi;
         T.Error_Percent(idxRows) = abs(finalMu - targetMu) / targetMu * 100;
+        T.XiStatus(idxRows) = xiStatus;
     end
 end
 
 %% --- Helper 4: Bisection Core ---
-function [model, xi, predictedMu] = bisectionXi(model, ex_rxn, targetMu, bioRxn)
+function [model, xi, predictedMu, status] = bisectionXi(model, ex_rxn, targetMu, bioRxn)
     % BISECTIONXI: Bisection method to calibrate xi (proteomic cost)
     %   xi is the coefficient of prot_pool in the extended branch
     tol = 1e-4; maxIter = 100; low = 0; high = 1000;
@@ -272,8 +351,32 @@ function [model, xi, predictedMu] = bisectionXi(model, ex_rxn, targetMu, bioRxn)
     originalLB = model.lb(strcmp(model.rxns, ex_rxn));
     model.lb(strcmp(model.rxns, ex_rxn)) = -1000;
 
-    xi = low; % Initialize
-    predictedMu = 0;
+    model.S(protRow, extIdx) = low;
+    sol = solveLP(model);
+    if isempty(sol.x) || sol.stat ~= 1
+        xi = 0; predictedMu = NaN; status = "BaselineSolveFailed";
+        model.lb(strcmp(model.rxns, ex_rxn)) = originalLB;
+        return;
+    end
+    predictedMu = sol.x(bioIdx);
+    xi = 0;
+    if predictedMu <= targetMu + tol
+        status = "AlreadyMatched";
+        if predictedMu < targetMu - tol, status = "BaselineBelowTarget"; end
+        model.lb(strcmp(model.rxns, ex_rxn)) = originalLB;
+        return;
+    end
+    bestXi = 0;
+    bestMu = predictedMu;
+    model.S(protRow, extIdx) = high;
+    sol = solveLP(model);
+    if ~isempty(sol.x) && sol.stat == 1 && sol.x(bioIdx) > targetMu + tol
+        xi = 0; predictedMu = bestMu; status = "UpperBoundNotReached";
+        model.S(protRow, extIdx) = xi;
+        model.lb(strcmp(model.rxns, ex_rxn)) = originalLB;
+        return;
+    end
+    status = "NotConverged";
 
     for iter = 1:maxIter
         xi = (low + high) / 2;
@@ -282,11 +385,16 @@ function [model, xi, predictedMu] = bisectionXi(model, ex_rxn, targetMu, bioRxn)
 
         if ~isempty(sol.x) && sol.stat == 1
             predictedMu = sol.x(bioIdx);
+            if abs(predictedMu - targetMu) < abs(bestMu - targetMu)
+                bestXi = xi;
+                bestMu = predictedMu;
+            end
         else
             predictedMu = 0;
         end
 
-        if abs(predictedMu - targetMu) < tol
+        if ~isempty(sol.x) && sol.stat == 1 && abs(predictedMu - targetMu) < tol
+            status = "Converged";
             fprintf('       Converged: Iter %d, Xi = %.6f, Err = %.2f%%\n', ...
                     iter, xi, abs(predictedMu-targetMu)/targetMu*100);
             break;
@@ -297,6 +405,12 @@ function [model, xi, predictedMu] = bisectionXi(model, ex_rxn, targetMu, bioRxn)
         else
             low = xi; 
         end
+    end
+
+    if status ~= "Converged"
+        xi = bestXi;
+        predictedMu = bestMu;
+        model.S(protRow, extIdx) = xi;
     end
 
     % Restore Switch
