@@ -35,10 +35,12 @@ pairedNames = {'Species','Model','Substrate','OxAvail','ConditionID', ...
     'GrowthExp','UptakeExp','UptakeMin','GrowthFixedUptake', ...
     'GrowthError','OxygenUptakePred_A','OxygenUptakePred_B', ...
     'NH3UptakePred_A','NH3UptakePred_B','ByproductFluxes', ...
-    'LPStatusA','LPStatusB'};
+    'LPStatusA','LPStatusB','LPStatusA0','GrowthMaxOriginal', ...
+    'LPStatusA0Open','GrowthMaxOpen'};
 maxNames = {'Species','Model','Substrate','OxAvail','GrowthMax', ...
     'UptakeAtGrowthMax','OxygenUptakeAtGrowthMax', ...
-    'NH3UptakeAtGrowthMax','LPStatusC'};
+    'NH3UptakeAtGrowthMax','LPStatusC','PositiveGrowth', ...
+    'OriginalSubstrateLB','OriginalSubstrateUB'};
 pairedRows = cell(0,numel(pairedNames));
 maxRows = cell(0,numel(maxNames));
 
@@ -80,13 +82,39 @@ for s = 1:nSpecies
             byproductText = productDescription(byproducts);
             uptakeMin = NaN; growthB = NaN; errorB = NaN;
             oA = NaN; oB = NaN; nA = NaN; nB = NaN;
+            growthMaxOriginal = NaN; growthMaxOpen = NaN;
 
             commonStatus = validateCondition(base,ib,jt,io,ox, ...
                 isfinite(muExp) && muExp >= 0 && ...
                 isfinite(uptakeExp) && uptakeExp > 0);
             if commonStatus ~= "OK"
                 statusA = commonStatus; statusB = commonStatus;
+                statusA0 = commonStatus; statusA0Open = commonStatus;
             else
+                statusA0 = "NotEvaluated"; statusA0Open = "NotEvaluated";
+                if strcmp(modelName,'Init')
+                    % Run the additional feasibility controls on the three
+                    % base models only; avoid multiplying full-batch LP work.
+                    a0 = conditionModel(base,io,ox,media,candidateIds,jt);
+                    directionA0 = exchangeUptakeSign(a0,jt);
+                    if directionA0 < 0
+                        a0.ub(jt) = min(a0.ub(jt),0);
+                    else
+                        a0.lb(jt) = max(a0.lb(jt),0);
+                    end
+                    a0.c(:) = 0; a0.c(ib) = 1;
+                    [vMax,statusMax] = solveBaseLP(a0,'max');
+                    if statusMax == "Optimal"
+                        growthMaxOriginal = vMax(ib);
+                    end
+                    a0Open = openTargetUptake(a0,jt,1000);
+                    [vMaxOpen,statusMaxOpen] = solveBaseLP(a0Open,'max');
+                    if statusMaxOpen == "Optimal"
+                        growthMaxOpen = vMaxOpen(ib);
+                    end
+                    [~,statusA0] = fixedGrowthFeasibility(a0,ib,muExp);
+                    [~,statusA0Open] = fixedGrowthFeasibility(a0Open,ib,muExp);
+                end
                 % Test A: independent copy, fixed growth and measured
                 % secretion only, minimum nonnegative target uptake.
                 a = conditionModel(base,io,ox,media,candidateIds,jt);
@@ -138,7 +166,8 @@ for s = 1:nSpecies
             end
             pairedRows(end+1,:) = {speciesNames(s),string(modelName), ...
                 target,ox,conditionID,muExp,uptakeExp,uptakeMin,growthB, ...
-                errorB,oA,oB,nA,nB,byproductText,statusA,statusB}; %#ok<SAGROW>
+                errorB,oA,oB,nA,nB,byproductText,statusA,statusB, ...
+                statusA0,growthMaxOriginal,statusA0Open,growthMaxOpen}; %#ok<SAGROW>
         end
 
         for i = 1:height(U)
@@ -147,10 +176,15 @@ for s = 1:nSpecies
             media = string(U.Media(i));
             jt = findRxnIDs(base,char(target));
             growthMax = NaN; uptakeC = NaN; oC = NaN; nC = NaN;
+            originalLB = NaN; originalUB = NaN;
             statusC = validateCondition(base,ib,jt,io,ox,true);
             if statusC == "OK"
-                % Test C: target keeps its original exchange bounds.
+                originalLB = base.lb(jt); originalUB = base.ub(jt);
+                % Test C: allow up to 1000 units of target uptake on a
+                % condition-local copy; alternative listed substrates
+                % have their uptake closed by conditionModel.
                 c = conditionModel(base,io,ox,media,candidateIds,jt);
+                c = openTargetUptake(c,jt,1000);
                 c.c(:) = 0; c.c(ib) = 1;
                 [vC,statusC] = solveBaseLP(c,'max');
                 if statusC == "Optimal"
@@ -161,7 +195,9 @@ for s = 1:nSpecies
                 end
             end
             maxRows(end+1,:) = {speciesNames(s),string(modelName), ...
-                target,ox,growthMax,uptakeC,oC,nC,statusC}; %#ok<SAGROW>
+                target,ox,growthMax,uptakeC,oC,nC,statusC, ...
+                statusC == "Optimal" && growthMax > 1e-9, ...
+                originalLB,originalUB}; %#ok<SAGROW>
         end
     end
 end
@@ -227,6 +263,26 @@ function model = conditionModel(model,io,ox,media,carbonIds,jt)
         if d < 0, model.lb(io) = max(model.lb(io),0); end
         if d > 0, model.ub(io) = min(model.ub(io),0); end
     end
+end
+
+function model = openTargetUptake(model,jt,limit)
+    direction = exchangeUptakeSign(model,jt);
+    if direction < 0
+        model.lb(jt) = min(model.lb(jt),-limit);
+    elseif direction > 0
+        model.ub(jt) = max(model.ub(jt),limit);
+    end
+end
+
+function [v,status] = fixedGrowthFeasibility(model,ib,growth)
+    v = [];
+    if growth < model.lb(ib)-1e-9 || growth > model.ub(ib)+1e-9
+        status = "ExperimentalGrowthOutsideBounds";
+        return
+    end
+    model.lb(ib) = growth; model.ub(ib) = growth;
+    model.c(:) = 0;
+    [v,status] = solveBaseLP(model,'max');
 end
 
 function d = exchangeUptakeSign(model,j)
