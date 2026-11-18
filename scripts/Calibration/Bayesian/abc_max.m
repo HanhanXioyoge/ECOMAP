@@ -1,10 +1,14 @@
 function [rmse_final, exp_out, sim_out] = abc_max(ecModel, kcat_random_all, growthdata, UnconstrainedGrowth, C13Fluxdata, proc, ...
-    sample_generation, j, bioRxn, c_source, rxn2block, org_name, C13ReactionMap, rmseMode)
+    sample_generation, j, bioRxn, c_source, rxn2block, org_name, C13ReactionMap, rmseMode, aggregationMode)
 
     if nargin < 14 || isempty(rmseMode)
         rmseMode = 'flux';
     end
     rmseMode = validatestring(rmseMode, {'flux', 'carbon'});
+    if nargin < 15 || isempty(aggregationMode)
+        aggregationMode = 'conditionWeighted';
+    end
+    aggregationMode = validatestring(aggregationMode, {'conditionWeighted', 'datasetEqual'});
     nstep = sample_generation / proc;
     rmse_final = zeros(1, nstep);
     kcat_sample = kcat_random_all(:, (j-1)*nstep+1 : j*nstep);
@@ -56,7 +60,7 @@ function [rmse_final, exp_out, sim_out] = abc_max(ecModel, kcat_random_all, grow
         n1 = height(growthdata);   % Number of experiments in constrained data
         n2 = height(UnconstrainedGrowth);  % Number of experiments in unconstrained data
         if ~isempty(C13Fluxdata) && isstruct(C13Fluxdata) && isfield(C13Fluxdata, 'reactions')
-            n3 = length(C13Fluxdata.reactions);  % Number of reactions in 13C data
+            n3 = sum(~isnan(rmse_conditions));  % Count valid conditions
         else
             n3 = 0;
         end
@@ -80,6 +84,8 @@ function [rmse_final, exp_out, sim_out] = abc_max(ecModel, kcat_random_all, grow
 
         if isempty(rmse_values)
             rmse_final(1, k) = NaN;
+        elseif strcmp(aggregationMode, 'datasetEqual')
+            rmse_final(1, k) = mean(rmse_values);
         else
             rmse_final(1, k) = sum(weights .* rmse_values) / sum(weights);
         end

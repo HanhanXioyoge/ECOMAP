@@ -1,8 +1,10 @@
 function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesianTuning(ecModel, useConstraint, useUnconstrained, useC13Flux, ...
-    saveCurrentState, maxIterations, proc, numPerGeneration, rejectNum, initialKcatsInput, rmseMode, modelname, parameters)
+    saveCurrentState, maxIterations, proc, numPerGeneration, rejectNum, initialKcatsInput, rmseMode, modelname, parameters, aggregationMode)
     % 1. Initialization and Data Setup
     % -------------------------------------------------------------------------
     if nargin < 13 || isempty(parameters), parameters = ParameterManager.getParams(); end
+    if nargin < 14 || isempty(aggregationMode), aggregationMode = 'conditionWeighted'; end
+    aggregationMode = validatestring(aggregationMode, {'conditionWeighted', 'datasetEqual'});
     if nargin < 12 || isempty(modelname), modelname = ecModel.id; end
     if nargin < 11 || isempty(rmseMode)
         rmseMode = 'flux';
@@ -65,7 +67,7 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
         stateMode = 'carbon';
     end
     stateFile = fullfile(analysisPath, ...
-        [modelname '_bayesianState_' modeTag '_' stateMode '.mat']);
+        [modelname '_bayesianState_' modeTag '_' stateMode '_' aggregationMode '.mat']);
     
     % Data Loading
     growthData = [];  if useConstraint, growthData = readtable(fullfile(basePath,'BayesianGrowthRates.tsv'), 'FileType', 'text', 'ReadRowNames', true); end
@@ -129,7 +131,7 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
         [BestRMSE, ~, ~] = abc_max(ecModel, kcats, ...
                 growthData, unconsData, C13Fluxdata, ...
                 1, 1, 1, bioRxn, cSource, [], ...
-                org_name, C13ReactionMap, rmseMode);
+                org_name, C13ReactionMap, rmseMode, aggregationMode);
         WorstRMSE = inf;
         kcat_100 = kcats;
         theta_100 = BestRMSE;
@@ -266,7 +268,7 @@ function [ecModel, finalKcats, initialKcats, rmseHistory, kcatHistory] = bayesia
                     kcatBatches{j}, growthData, unconsData, ...
                     C13Fluxdata, 1, size(kcatBatches{j},2), ...
                     1, bioRxn, cSource, [], ...
-                    org_name, C13ReactionMap, rmseMode);
+                    org_name, C13ReactionMap, rmseMode, aggregationMode);
             end
         end
         

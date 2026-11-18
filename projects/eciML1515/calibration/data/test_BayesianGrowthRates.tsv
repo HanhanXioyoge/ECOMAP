@@ -1,0 +1,15 @@
+	Substrate	Uptake	biomass	EX_ac_e	EX_etoh_e	EX_succ_e	EX_for_e	EX_co2_e	EX_o2_e	EX_nh4_e	OxAvail	Media
+1	EX_ac_e	-14.61	0.273	-14.61	Nan	Nan	Nan	Nan	-17.03	Nan	aerobic	MIN
+2	EX_ac_e	-13.54	0.248	-13.54	Nan	Nan	Nan	Nan	-14.8	Nan	aerobic	MIN
+3	EX_succ_e	-6.12	0.342	Nan	Nan	-6.12	Nan	Nan	-12.75	Nan	aerobic	MIN
+4	EX_succ_e	-10.19	0.483	Nan	Nan	-10.19	Nan	Nan	-17.78	Nan	aerobic	MIN
+5	EX_succ_e	-11.66	0.487	Nan	Nan	-11.66	Nan	Nan	-19.82	Nan	aerobic	MIN
+6	EX_succ_e	-12.22	0.496	Nan	Nan	-12.22	Nan	Nan	-18.24	Nan	aerobic	MIN
+7	EX_succ_e	-12.59	0.506	Nan	Nan	-12.59	Nan	Nan	-18.43	Nan	aerobic	MIN
+8	EX_glc__D_e	-1.14	0.05	0	Nan	Nan	Nan	Nan	Nan	Nan	aerobic	MIN
+9	EX_glc__D_e	-3.08	0.21	0	Nan	Nan	Nan	Nan	Nan	Nan	aerobic	MIN
+10	EX_glc__D_e	-4.8	0.4	0.16	Nan	Nan	Nan	Nan	Nan	Nan	aerobic	MIN
+11	EX_glc__D_e	-9.65	0.65	6.76	Nan	Nan	Nan	Nan	Nan	Nan	aerobic	MIN
+12	EX_glc__D_e	-8.6	0.66	4.3	Nan	Nan	Nan	Nan	Nan	Nan	aerobic	MIN
+13	EX_glc__D_e	-2.78	0.31	Nan	Nan	Nan	Nan	Nan	Nan	Nan	aerobic	MIN
+14	EX_glc__D_e	-4.36	0.41	Nan	Nan	Nan	Nan	Nan	Nan	Nan	aerobic	MIN
