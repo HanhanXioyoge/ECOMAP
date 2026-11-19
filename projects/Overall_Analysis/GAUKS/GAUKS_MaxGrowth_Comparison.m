@@ -3,7 +3,10 @@
 eciML1515_Location = fullfile(findECOMAProot, 'projects', 'eciML1515'); 
 eciML1515_models_Location = fullfile(eciML1515_Location, 'models'); 
 eciML1515_kcatRepo_Location = fullfile(eciML1515_Location, 'calibration');
-load(fullfile(eciML1515_models_Location, 'eciML1515_models.mat'))
+load(fullfile(eciML1515_models_Location, 'eciML1515_models_part1.mat'))
+load(fullfile(eciML1515_models_Location, 'eciML1515_models_part2.mat'))
+eciML1515_models = cell2struct([struct2cell(models_part1); struct2cell(models_part2)], ...
+    [fieldnames(models_part1); fieldnames(models_part2)], 1);
 
 ecYeast_Location = fullfile(findECOMAProot, 'projects', 'ecYeast'); 
 ecYeast_models_Location = fullfile(ecYeast_Location, 'models'); 

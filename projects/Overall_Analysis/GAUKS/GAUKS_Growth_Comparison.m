@@ -1,5 +1,7 @@
-%% GAUKS growth-experiment validation using BayesianGrowthRates.tsv
+%% GAUKS growth-experiment validation using Train & Test BayesianGrowthRates.tsv
 % Dynamically discovers model pairs; no fixed model-pair counts are assumed.
+% Evaluates Train (BayesianGrowthRates.tsv) and Test (test_BayesianGrowthRates.tsv)
+% independently without pooling.
 % Groups: All, AboveUmin (> Umin), BelowUmin (<= Umin).
 % Metrics: direct biomass RMSE, pooled exchange RMSE, and pooled total RMSE.
 % The condition-specific substrate exchange is fixed to experimental Uptake and
@@ -12,11 +14,15 @@
 % Output workbook sheets:
 %   ConditionPredictions (long format: biomass and exchange rows)
 %   PairSummary, SpeciesSummary, DataAudit
+
 %% Load models
 eciML1515_Location = fullfile(findECOMAProot,'projects','eciML1515');
 eciML1515_models_Location = fullfile(eciML1515_Location,'models');
 eciML1515_kcatRepo_Location = fullfile(eciML1515_Location,'calibration');
-load(fullfile(eciML1515_models_Location,'eciML1515_models.mat'))
+load(fullfile(eciML1515_models_Location, 'eciML1515_models_part1.mat'))
+load(fullfile(eciML1515_models_Location, 'eciML1515_models_part2.mat'))
+eciML1515_models = cell2struct([struct2cell(models_part1); struct2cell(models_part2)], ...
+    [fieldnames(models_part1); fieldnames(models_part2)], 1);
 
 ecYeast_Location = fullfile(findECOMAProot,'projects','ecYeast');
 ecYeast_models_Location = fullfile(ecYeast_Location,'models');
@@ -27,7 +33,8 @@ eciCW773_Location = fullfile(findECOMAProot,'projects','eciCW773');
 eciCW773_models_Location = fullfile(eciCW773_Location,'models');
 eciCW773_kcatRepo_Location = fullfile(eciCW773_Location,'calibration');
 load(fullfile(eciCW773_models_Location,'eciCW773_models.mat'))
-%% Species/model configuration
+
+%% Species/model & dataset configuration
 speciesNames = ["eciML1515","ecYeast","eciCW773"];
 orgNames = {'Escherichia coli','Saccharomyces cerevisiae', ...
             'Corynebacterium glutamicum'};
@@ -36,337 +43,351 @@ modelLocations = {eciML1515_kcatRepo_Location, ...
                   ecYeast_kcatRepo_Location,eciCW773_kcatRepo_Location};
 ecGEM_bioRxns = {'biomass','r_2111','biomass'};
 oxygenRxns = {'EX_o2_e','r_1992','EX_o2_e'};
-%% Read experimental data
+
+datasetNames = ["Train","Test"];
+datasetFiles = ["BayesianGrowthRates.tsv","test_BayesianGrowthRates.tsv"];
+nDatasets = numel(datasetNames);
+
+%% Read experimental data (Train and Test)
 nSpecies = numel(speciesNames);
-expSets = cell(1,nSpecies);
+expSets = cell(nSpecies,nDatasets);
 for s = 1:nSpecies
-    expSets{s} = readtable( ...
-        fullfile(modelLocations{s},'data','BayesianGrowthRates.tsv'), ...
-        'FileType','text','Delimiter','\t','VariableNamingRule','preserve');
+    for d = 1:nDatasets
+        dataPath = fullfile(modelLocations{s},'data',char(datasetFiles(d)));
+        assert(isfile(dataPath), 'GAUKS:MissingDataFile', ...
+            'Experimental data file not found: %s', dataPath);
+        expSets{s,d} = readtable( ...
+            dataPath, ...
+            'FileType','text','Delimiter','\t','VariableNamingRule','preserve');
+    end
 end
+
 %% Parameters and result buffers
 inactiveUmin = 1000;
 inactiveUminTol = 1e-6; % Absolute tolerance for the sentinel value only.
 nBootPair = 2000;
 nBootSpecies = 5000;
 rng(1);
-RCondition = cell(0,18);
-RFlux = cell(0,18);
-RAudit = cell(0,19);
-%% Predict each discovered base/GAUKS model pair
+RCondition = cell(0,19);
+RFlux = cell(0,19);
+RAudit = cell(0,20);
+
+%% Predict each discovered base/GAUKS model pair across Train and Test
 for s = 1:nSpecies
     M = modelSets{s};
-    Traw = expSets{s};
     bioRxn = ecGEM_bioRxns{s};
-    assert(ismember(bioRxn,Traw.Properties.VariableNames), ...
-        'GAUKS:MissingBiomassColumn', ...
-        'Experimental biomass column %s is missing for %s.', ...
-        bioRxn,char(speciesNames(s)));
-    targetRaw = toNumeric(Traw.(bioRxn));
-    uptakeRaw = toNumeric(Traw.Uptake);
-    substrateRaw = string(Traw.Substrate);
-    oxRaw = normalizeOxygen(Traw.OxAvail);
-    % Biomass may be missing while exchange observations remain usable.
-    valid = isfinite(uptakeRaw) & uptakeRaw < 0 & ...
-            ~ismissing(substrateRaw) & substrateRaw ~= "" & ...
-            substrateRaw ~= "NaN";
-    T = Traw(valid,:);
-    target = targetRaw(valid);
-    uptakeAll = uptakeRaw(valid);
-    conditionID = find(valid);
-    oxValid = oxRaw(valid);
-    nRaw = height(Traw);
-    nValid = height(T);
-    supportedOxygen = oxValid == "aerobic" | oxValid == "anaerobic";
-    nUnsupportedOxygen = sum(~supportedOxygen);
-    allCarbon = unique(string(T.Substrate),'stable');
-    allCarbon = allCarbon(~ismissing(allCarbon) & ...
-                          allCarbon ~= "" & allCarbon ~= "NaN");
     gauksFields = fieldnames(M);
     gauksFields = gauksFields(endsWith(gauksFields,'_GAUKS'));
-    for p = 1:numel(gauksFields)
-        gauksName = gauksFields{p};
-        baseName = erase(gauksName,'_GAUKS');
-        if ~isfield(M,baseName)
-            RAudit(end+1,:) = {speciesNames(s),string(baseName), ...
-                string(gauksName),"MissingBaseModel",nRaw,nValid, ...
-                nUnsupportedOxygen,NaN,NaN,NaN,0,0,0,0,0,0,0,0,0};
-            continue
-        end
-        mB = M.(baseName);
-        mG = M.(gauksName);
-        ibB = findRxnIDs(mB,bioRxn);
-        ibG = findRxnIDs(mG,bioRxn);
-        if ibB == 0 || ibG == 0
-            RAudit(end+1,:) = {speciesNames(s),string(baseName), ...
-                string(gauksName),"MissingBiomassReaction",nRaw,nValid, ...
-                nUnsupportedOxygen,NaN,NaN,NaN,0,0,0,0,0,0,0,0,0};
-            continue
-        end
-        mB.c(:) = 0; mG.c(:) = 0;
-        mB.c(ibB) = 1; mG.c(ibG) = 1;
-        idsB = findRxnIDs(mB,cellstr(allCarbon));
-        idsG = findRxnIDs(mG,cellstr(allCarbon));
-        params = extractSluiceParams(mG,cellstr(allCarbon));
-        % Data columns that are actual reaction IDs and have numeric observations.
-        varNames = Traw.Properties.VariableNames;
-        % Biomass IDs are species-specific (e.g. r_2111 for ecYeast).
-        % Use the same configured ID for experimental data and model objective.
-        metadataNames = ["Substrate","Uptake","OxAvail","Media", ...
-                         string(ecGEM_bioRxns{s})];
-        fluxRxns = {};
-        for v = 1:numel(varNames)
-            rxn = varNames{v};
-            if any(string(rxn) == metadataNames)
+
+    for d = 1:nDatasets
+        datasetName = datasetNames(d);
+        Traw = expSets{s,d};
+        assert(ismember(bioRxn,Traw.Properties.VariableNames), ...
+            'GAUKS:MissingBiomassColumn', ...
+            'Experimental biomass column %s is missing for %s (%s).', ...
+            bioRxn,char(speciesNames(s)),char(datasetName));
+
+        targetRaw = toNumeric(Traw.(bioRxn));
+        uptakeRaw = toNumeric(Traw.Uptake);
+        substrateRaw = string(Traw.Substrate);
+        oxRaw = normalizeOxygen(Traw.OxAvail);
+        % Biomass may be missing while exchange observations remain usable.
+        valid = isfinite(uptakeRaw) & uptakeRaw < 0 & ...
+                ~ismissing(substrateRaw) & substrateRaw ~= "" & ...
+                substrateRaw ~= "NaN";
+        T = Traw(valid,:);
+        target = targetRaw(valid);
+        uptakeAll = uptakeRaw(valid);
+        conditionID = find(valid);
+        oxValid = oxRaw(valid);
+        nRaw = height(Traw);
+        nValid = height(T);
+        supportedOxygen = oxValid == "aerobic" | oxValid == "anaerobic";
+        nUnsupportedOxygen = sum(~supportedOxygen);
+        allCarbon = unique(string(T.Substrate),'stable');
+        allCarbon = allCarbon(~ismissing(allCarbon) & ...
+                              allCarbon ~= "" & allCarbon ~= "NaN");
+
+        for p = 1:numel(gauksFields)
+            gauksName = gauksFields{p};
+            baseName = erase(gauksName,'_GAUKS');
+            if ~isfield(M,baseName)
+                RAudit(end+1,:) = {speciesNames(s),datasetName,string(baseName), ...
+                    string(gauksName),"MissingBaseModel",nRaw,nValid, ...
+                    nUnsupportedOxygen,NaN,NaN,NaN,0,0,0,0,0,0,0,0,0};
                 continue
             end
-            expValues = toNumeric(Traw.(rxn));
-            if ~any(isfinite(expValues(valid)))
+            mB = M.(baseName);
+            mG = M.(gauksName);
+            ibB = findRxnIDs(mB,bioRxn);
+            ibG = findRxnIDs(mG,bioRxn);
+            if ibB == 0 || ibG == 0
+                RAudit(end+1,:) = {speciesNames(s),datasetName,string(baseName), ...
+                    string(gauksName),"MissingBiomassReaction",nRaw,nValid, ...
+                    nUnsupportedOxygen,NaN,NaN,NaN,0,0,0,0,0,0,0,0,0};
                 continue
             end
-            if findRxnIDs(mB,rxn) > 0 || findRxnIDs(mG,rxn) > 0
-                fluxRxns{end+1,1} = rxn;
-            end
-        end
-        nFluxRxns = numel(fluxRxns);
-        fluxExpByRxn = cell(nFluxRxns,1);
-        fluxIdsB = zeros(nFluxRxns,1);
-        fluxIdsG = zeros(nFluxRxns,1);
-        for r = 1:nFluxRxns
-            fluxExpByRxn{r} = toNumeric(T.(fluxRxns{r}));
-            fluxIdsB(r) = findRxnIDs(mB,fluxRxns{r});
-            fluxIdsG(r) = findRxnIDs(mG,fluxRxns{r});
-        end
+            mB.c(:) = 0; mG.c(:) = 0;
+            mB.c(ibB) = 1; mG.c(ibG) = 1;
+            idsB = findRxnIDs(mB,cellstr(allCarbon));
+            idsG = findRxnIDs(mG,cellstr(allCarbon));
+            params = extractSluiceParams(mG,cellstr(allCarbon));
 
-        nBaseSolved = 0; nGAUKSSolved = 0;
-        nBaseFailed = 0; nGAUKSFailed = 0;
-        nPairedBio = 0; nPairedExchangeObs = 0;
-        groupLabels = strings(height(T),1);
-
-        %% Evaluate conditions for this model pair
-        for i = 1:height(T)
-
-            ex = string(T.Substrate(i));
-            ox = oxValid(i);
-            media = string(T.Media(i));
-            muExp = target(i);
-            uptakeExp = uptakeAll(i);
-            uptakeMagnitude = abs(uptakeExp);
-
-            k = find(allCarbon == ex,1);
-            umin = NaN;
-            if ~isempty(k) && isfield(params,'umin') && k <= numel(params.umin)
-                umin = double(params.umin(k));
-            end
-
-            isInactiveUmin = isfinite(umin) && ...
-                abs(umin-inactiveUmin) <= inactiveUminTol;
-            if isInactiveUmin
-                uminGroup = "ExcludedInactiveUmin";
-            elseif ~isfinite(umin) || umin < 0
-                uminGroup = "UnknownUmin";
-            elseif uptakeMagnitude > umin
-                uminGroup = "AboveUmin";
-            else
-                uminGroup = "BelowUmin";
-            end
-            groupLabels(i) = uminGroup;
-
-            muB = NaN; muG = NaN;
-            vB = []; vG = [];
-            statusB = "NotSolved"; statusG = "NotSolved";
-
-            jB = findRxnIDs(mB,char(ex));
-            jG = findRxnIDs(mG,char(ex));
-            iBasal = findRxnIDs(mG,char(ex+"_basal"));
-            iExtended = findRxnIDs(mG,char(ex+"_extended"));
-
-            % Do not treat unspecified "limited" oxygen as aerobic.
-            if isInactiveUmin
-                % Exclude both models on the same substrate, not the whole
-                % model pair: other substrates may have active thresholds.
-                statusB = "Excluded_InactiveUmin";
-                statusG = "Excluded_InactiveUmin";
-            elseif ox ~= "aerobic" && ox ~= "anaerobic"
-                statusB = "Excluded_OxygenCondition";
-                statusG = "Excluded_OxygenCondition";
-            else
-                %% Base model
-                if jB == 0
-                    statusB = "MissingSubstrateRxn";
-                else
-                    b = mB;
-                    idxB = idsB(idsB > 0);
-                    b.lb(idxB) = 0;
-                    b.ub(idxB) = max(0,b.ub(idxB));
-                    b.lb(jB) = uptakeExp;
-                    b.ub(jB) = uptakeExp;
-
-                    if ox == "anaerobic"
-                        b = anaerobicModel(b,orgNames{s},oxygenRxns{s});
-                    end
-
-                    sb = solveLP(b,'max');
-                    if ~isempty(sb.x) && sb.stat == 1 && isfinite(sb.x(ibB))
-                        vB = sb.x;
-                        muB = vB(ibB);
-                        statusB = "Solved";
-                    else
-                        statusB = "SolveFailed";
-                    end
-                end
-
-                %% GAUKS model
-                if jG == 0 || iBasal == 0 || iExtended == 0
-                    statusG = "MissingGAUKSRxn";
-                else
-                    g = mG;
-                    idxG = idsG(idsG > 0);
-                    g.lb(idxG) = 0;
-                    g.ub(idxG) = max(0,g.ub(idxG));
-                    g.lb(jG) = uptakeExp;
-                    g.ub(jG) = uptakeExp;
-
-                    if ox == "anaerobic"
-                        g = anaerobicModel(g,orgNames{s},oxygenRxns{s});
-                    end
-
-                    sg = solveLP(g,'max');
-                    if ~isempty(sg.x) && sg.stat == 1 && isfinite(sg.x(ibG))
-                        vG = sg.x;
-                        muG = vG(ibG);
-                        statusG = "Solved";
-                    else
-                        statusG = "SolveFailed";
-                    end
-                end
-            end
-
-            nBaseSolved = nBaseSolved + double(statusB == "Solved");
-            nGAUKSSolved = nGAUKSSolved + double(statusG == "Solved");
-            nBaseFailed = nBaseFailed + double( ...
-                statusB ~= "Solved" && ~startsWith(statusB,"Excluded_"));
-            nGAUKSFailed = nGAUKSFailed + double( ...
-                statusG ~= "Solved" && ~startsWith(statusG,"Excluded_"));
-            nPairedBio = nPairedBio + double( ...
-                isfinite(muExp) && isfinite(muB) && isfinite(muG));
-
-            RCondition(end+1,:) = { ...
-                speciesNames(s),string(baseName),string(gauksName), ...
-                conditionID(i),ex,ox,media,uptakeExp,uptakeMagnitude, ...
-                muExp,umin,uminGroup,muB,muG,muB-muExp,muG-muExp, ...
-                statusB,statusG};
-
-            %% Record other measured exchange reactions in long format
-            for r = 1:nFluxRxns
-                rxn = string(fluxRxns{r});
-
-                % This condition's substrate uptake is fixed to experiment.
-                if rxn == ex
+            % Data columns that are actual reaction IDs and have numeric observations.
+            varNames = Traw.Properties.VariableNames;
+            metadataNames = ["Substrate","Uptake","OxAvail","Media", ...
+                             string(ecGEM_bioRxns{s})];
+            fluxRxns = {};
+            for v = 1:numel(varNames)
+                rxn = varNames{v};
+                if any(string(rxn) == metadataNames)
                     continue
                 end
-
-                expFlux = fluxExpByRxn{r}(i);
-                predFB = NaN; predFG = NaN;
-                if ~isempty(vB) && fluxIdsB(r) > 0
-                    predFB = vB(fluxIdsB(r));
+                expValues = toNumeric(Traw.(rxn));
+                if ~any(isfinite(expValues(valid)))
+                    continue
                 end
-                if ~isempty(vG) && fluxIdsG(r) > 0
-                    predFG = vG(fluxIdsG(r));
+                if findRxnIDs(mB,rxn) > 0 || findRxnIDs(mG,rxn) > 0
+                    fluxRxns{end+1,1} = rxn;
                 end
-
-                if isInactiveUmin
-                    fluxStatusB = "Excluded_InactiveUmin";
-                elseif fluxIdsB(r) == 0
-                    fluxStatusB = "MissingReactionInModel";
-                elseif isempty(vB)
-                    fluxStatusB = "ModelNotSolved";
-                elseif ~isfinite(expFlux)
-                    fluxStatusB = "NoExperimentalObservation";
-                else
-                    fluxStatusB = "Predicted";
-                end
-
-                if isInactiveUmin
-                    fluxStatusG = "Excluded_InactiveUmin";
-                elseif fluxIdsG(r) == 0
-                    fluxStatusG = "MissingReactionInModel";
-                elseif isempty(vG)
-                    fluxStatusG = "ModelNotSolved";
-                elseif ~isfinite(expFlux)
-                    fluxStatusG = "NoExperimentalObservation";
-                else
-                    fluxStatusG = "Predicted";
-                end
-
-                errFB = NaN; errFG = NaN;
-                if isfinite(expFlux) && isfinite(predFB)
-                    errFB = predFB-expFlux;
-                end
-                if isfinite(expFlux) && isfinite(predFG)
-                    errFG = predFG-expFlux;
-                end
-
-                nPairedExchangeObs = nPairedExchangeObs + double( ...
-                    isfinite(expFlux) && isfinite(predFB) && isfinite(predFG));
-
-                RFlux(end+1,:) = { ...
-                    speciesNames(s),string(baseName),string(gauksName), ...
-                    conditionID(i),ex,ox,media,uptakeExp,umin,uminGroup, ...
-                    rxn,expFlux,predFB,predFG,errFB,errFG, ...
-                    fluxStatusB,fluxStatusG};
             end
+            nFluxRxns = numel(fluxRxns);
+            fluxExpByRxn = cell(nFluxRxns,1);
+            fluxIdsB = zeros(nFluxRxns,1);
+            fluxIdsG = zeros(nFluxRxns,1);
+            for r = 1:nFluxRxns
+                fluxExpByRxn{r} = toNumeric(T.(fluxRxns{r}));
+                fluxIdsB(r) = findRxnIDs(mB,fluxRxns{r});
+                fluxIdsG(r) = findRxnIDs(mG,fluxRxns{r});
+            end
+
+            nBaseSolved = 0; nGAUKSSolved = 0;
+            nBaseFailed = 0; nGAUKSFailed = 0;
+            nPairedBio = 0; nPairedExchangeObs = 0;
+            groupLabels = strings(height(T),1);
+
+            %% Evaluate conditions for this model pair
+            for i = 1:height(T)
+
+                ex = string(T.Substrate(i));
+                ox = oxValid(i);
+                media = string(T.Media(i));
+                muExp = target(i);
+                uptakeExp = uptakeAll(i);
+                uptakeMagnitude = abs(uptakeExp);
+
+                k = find(allCarbon == ex,1);
+                umin = NaN;
+                if ~isempty(k) && isfield(params,'umin') && k <= numel(params.umin)
+                    umin = double(params.umin(k));
+                end
+
+                isInactiveUmin = isfinite(umin) && ...
+                    abs(umin-inactiveUmin) <= inactiveUminTol;
+                if isInactiveUmin
+                    uminGroup = "ExcludedInactiveUmin";
+                elseif ~isfinite(umin) || umin < 0
+                    uminGroup = "UnknownUmin";
+                elseif uptakeMagnitude > umin
+                    uminGroup = "AboveUmin";
+                else
+                    uminGroup = "BelowUmin";
+                end
+                groupLabels(i) = uminGroup;
+
+                muB = NaN; muG = NaN;
+                vB = []; vG = [];
+                statusB = "NotSolved"; statusG = "NotSolved";
+
+                jB = findRxnIDs(mB,char(ex));
+                jG = findRxnIDs(mG,char(ex));
+                iBasal = findRxnIDs(mG,char(ex+"_basal"));
+                iExtended = findRxnIDs(mG,char(ex+"_extended"));
+
+                % Do not treat unspecified "limited" oxygen as aerobic.
+                if isInactiveUmin
+                    statusB = "Excluded_InactiveUmin";
+                    statusG = "Excluded_InactiveUmin";
+                elseif ox ~= "aerobic" && ox ~= "anaerobic"
+                    statusB = "Excluded_OxygenCondition";
+                    statusG = "Excluded_OxygenCondition";
+                else
+                    %% Base model
+                    if jB == 0
+                        statusB = "MissingSubstrateRxn";
+                    else
+                        b = mB;
+                        idxB = idsB(idsB > 0);
+                        b.lb(idxB) = 0;
+                        b.ub(idxB) = max(0,b.ub(idxB));
+                        b.lb(jB) = uptakeExp;
+                        b.ub(jB) = uptakeExp;
+
+                        if ox == "anaerobic"
+                            b = anaerobicModel(b,orgNames{s},oxygenRxns{s});
+                        end
+
+                        sb = solveLP(b,'max');
+                        if ~isempty(sb.x) && sb.stat == 1 && isfinite(sb.x(ibB))
+                            vB = sb.x;
+                            muB = vB(ibB);
+                            statusB = "Solved";
+                        else
+                            statusB = "SolveFailed";
+                        end
+                    end
+
+                    %% GAUKS model
+                    if jG == 0 || iBasal == 0 || iExtended == 0
+                        statusG = "MissingGAUKSRxn";
+                    else
+                        g = mG;
+                        idxG = idsG(idsG > 0);
+                        g.lb(idxG) = 0;
+                        g.ub(idxG) = max(0,g.ub(idxG));
+                        g.lb(jG) = uptakeExp;
+                        g.ub(jG) = uptakeExp;
+
+                        if ox == "anaerobic"
+                            g = anaerobicModel(g,orgNames{s},oxygenRxns{s});
+                        end
+
+                        sg = solveLP(g,'max');
+                        if ~isempty(sg.x) && sg.stat == 1 && isfinite(sg.x(ibG))
+                            vG = sg.x;
+                            muG = vG(ibG);
+                            statusG = "Solved";
+                        else
+                            statusG = "SolveFailed";
+                        end
+                    end
+                end
+
+                nBaseSolved = nBaseSolved + double(statusB == "Solved");
+                nGAUKSSolved = nGAUKSSolved + double(statusG == "Solved");
+                nBaseFailed = nBaseFailed + double( ...
+                    statusB ~= "Solved" && ~startsWith(statusB,"Excluded_"));
+                nGAUKSFailed = nGAUKSFailed + double( ...
+                    statusG ~= "Solved" && ~startsWith(statusG,"Excluded_"));
+                nPairedBio = nPairedBio + double( ...
+                    isfinite(muExp) && isfinite(muB) && isfinite(muG));
+
+                RCondition(end+1,:) = { ...
+                    speciesNames(s),datasetName,string(baseName),string(gauksName), ...
+                    conditionID(i),ex,ox,media,uptakeExp,uptakeMagnitude, ...
+                    muExp,umin,uminGroup,muB,muG,muB-muExp,muG-muExp, ...
+                    statusB,statusG};
+
+                %% Record other measured exchange reactions in long format
+                for r = 1:nFluxRxns
+                    rxn = string(fluxRxns{r});
+
+                    % This condition's substrate uptake is fixed to experiment.
+                    if rxn == ex
+                        continue
+                    end
+
+                    expFlux = fluxExpByRxn{r}(i);
+                    predFB = NaN; predFG = NaN;
+                    if ~isempty(vB) && fluxIdsB(r) > 0
+                        predFB = vB(fluxIdsB(r));
+                    end
+                    if ~isempty(vG) && fluxIdsG(r) > 0
+                        predFG = vG(fluxIdsG(r));
+                    end
+
+                    if isInactiveUmin
+                        fluxStatusB = "Excluded_InactiveUmin";
+                    elseif fluxIdsB(r) == 0
+                        fluxStatusB = "MissingReactionInModel";
+                    elseif isempty(vB)
+                        fluxStatusB = "ModelNotSolved";
+                    elseif ~isfinite(expFlux)
+                        fluxStatusB = "NoExperimentalObservation";
+                    else
+                        fluxStatusB = "Predicted";
+                    end
+
+                    if isInactiveUmin
+                        fluxStatusG = "Excluded_InactiveUmin";
+                    elseif fluxIdsG(r) == 0
+                        fluxStatusG = "MissingReactionInModel";
+                    elseif isempty(vG)
+                        fluxStatusG = "ModelNotSolved";
+                    elseif ~isfinite(expFlux)
+                        fluxStatusG = "NoExperimentalObservation";
+                    else
+                        fluxStatusG = "Predicted";
+                    end
+
+                    errFB = NaN; errFG = NaN;
+                    if isfinite(expFlux) && isfinite(predFB)
+                        errFB = predFB-expFlux;
+                    end
+                    if isfinite(expFlux) && isfinite(predFG)
+                        errFG = predFG-expFlux;
+                    end
+
+                    nPairedExchangeObs = nPairedExchangeObs + double( ...
+                        isfinite(expFlux) && isfinite(predFB) && isfinite(predFG));
+
+                    RFlux(end+1,:) = { ...
+                        speciesNames(s),datasetName,string(baseName),string(gauksName), ...
+                        conditionID(i),ex,ox,media,uptakeExp,umin,uminGroup, ...
+                        rxn,expFlux,predFB,predFG,errFB,errFG, ...
+                        fluxStatusB,fluxStatusG};
+                end
+            end
+
+            %% Audit this model pair
+            RAudit(end+1,:) = { ...
+                speciesNames(s),datasetName,string(baseName),string(gauksName),"Analyzed", ...
+                nRaw,nValid,nUnsupportedOxygen, ...
+                sum(groupLabels == "AboveUmin"), ...
+                sum(groupLabels == "BelowUmin"), ...
+                sum(groupLabels == "UnknownUmin"), ...
+                nBaseSolved,nGAUKSSolved,nBaseFailed,nGAUKSFailed,nPairedBio, ...
+                nFluxRxns,sum(fluxIdsB == 0),sum(fluxIdsG == 0), ...
+                nPairedExchangeObs};
         end
-
-        %% Audit this model pair
-        RAudit(end+1,:) = { ...
-            speciesNames(s),string(baseName),string(gauksName),"Analyzed", ...
-            nRaw,nValid,nUnsupportedOxygen, ...
-            sum(groupLabels == "AboveUmin"), ...
-            sum(groupLabels == "BelowUmin"), ...
-            sum(groupLabels == "UnknownUmin"), ...
-            nBaseSolved,nGAUKSSolved,nBaseFailed,nGAUKSFailed,nPairedBio, ...
-            nFluxRxns,sum(fluxIdsB == 0),sum(fluxIdsG == 0), ...
-            nPairedExchangeObs};
-
     end
 end
 
 %% Convert condition-level results to typed tables
 conditionResults = cell2table(RCondition,'VariableNames',{ ...
-    'Species','BaseModel','GAUKSModel','ConditionID','Substrate', ...
+    'Species','Dataset','BaseModel','GAUKSModel','ConditionID','Substrate', ...
     'OxAvail','Media','UptakeExperimental','UptakeMagnitude', ...
     'GrowthExperimental','Umin','UminGroup','GrowthBefore','GrowthAfter', ...
     'ErrorBefore','ErrorAfter','BaseStatus','GAUKSStatus'});
 
 conditionResults = castTableColumns(conditionResults, ...
-    {'Species','BaseModel','GAUKSModel','Substrate','OxAvail','Media', ...
+    {'Species','Dataset','BaseModel','GAUKSModel','Substrate','OxAvail','Media', ...
      'UminGroup','BaseStatus','GAUKSStatus'}, ...
     {'ConditionID','UptakeExperimental','UptakeMagnitude', ...
      'GrowthExperimental','Umin','GrowthBefore','GrowthAfter', ...
      'ErrorBefore','ErrorAfter'});
 
 fluxResults = cell2table(RFlux,'VariableNames',{ ...
-    'Species','BaseModel','GAUKSModel','ConditionID','Substrate','OxAvail', ...
+    'Species','Dataset','BaseModel','GAUKSModel','ConditionID','Substrate','OxAvail', ...
     'Media','UptakeExperimental','Umin','UminGroup','Reaction', ...
     'FluxExperimental','FluxBefore','FluxAfter','ErrorBefore','ErrorAfter', ...
     'StatusBefore','StatusAfter'});
 
 fluxResults = castTableColumns(fluxResults, ...
-    {'Species','BaseModel','GAUKSModel','Substrate','OxAvail','Media', ...
+    {'Species','Dataset','BaseModel','GAUKSModel','Substrate','OxAvail','Media', ...
      'UminGroup','Reaction','StatusBefore','StatusAfter'}, ...
     {'ConditionID','UptakeExperimental','Umin','FluxExperimental', ...
      'FluxBefore','FluxAfter','ErrorBefore','ErrorAfter'});
 
 dataAudit = cell2table(RAudit,'VariableNames',{ ...
-    'Species','BaseModel','GAUKSModel','PairStatus','NRawConditions', ...
+    'Species','Dataset','BaseModel','GAUKSModel','PairStatus','NRawConditions', ...
     'NValidInputs','NUnsupportedOxygen','NAboveUmin','NBelowUmin', ...
     'NUnknownUmin','NBaseSolved','NGAUKSSolved','NBaseFailed', ...
     'NGAUKSFailed','NPairedBio','NFluxReactions', ...
     'NFluxMissingInBase','NFluxMissingInGAUKS','NPairedExchangeObs'});
 
 dataAudit = castTableColumns(dataAudit, ...
-    {'Species','BaseModel','GAUKSModel','PairStatus'}, ...
+    {'Species','Dataset','BaseModel','GAUKSModel','PairStatus'}, ...
     {'NRawConditions','NValidInputs','NUnsupportedOxygen','NAboveUmin', ...
      'NBelowUmin','NUnknownUmin','NBaseSolved','NGAUKSSolved', ...
      'NBaseFailed','NGAUKSFailed','NPairedBio','NFluxReactions', ...
@@ -377,6 +398,7 @@ dataAudit.NExcludedInactiveUmin = zeros(height(dataAudit),1);
 dataAudit.NEligibleConditions = zeros(height(dataAudit),1);
 for p = 1:height(dataAudit)
     pairRows = conditionResults.Species == dataAudit.Species(p) & ...
+        conditionResults.Dataset == dataAudit.Dataset(p) & ...
         conditionResults.BaseModel == dataAudit.BaseModel(p) & ...
         conditionResults.GAUKSModel == dataAudit.GAUKSModel(p);
     dataAudit.NExcludedInactiveUmin(p) = sum(pairRows & ...
@@ -387,18 +409,20 @@ for p = 1:height(dataAudit)
          conditionResults.OxAvail == "anaerobic"));
 end
 
-%% Per-model-pair RMSE summary: All / AboveUmin / BelowUmin
+%% Per-model-pair RMSE summary: All / AboveUmin / BelowUmin (separated by Dataset)
 pairKeys = unique(conditionResults(:, ...
-    {'Species','BaseModel','GAUKSModel'}),'rows','stable');
+    {'Species','Dataset','BaseModel','GAUKSModel'}),'rows','stable');
 groupNames = ["All","AboveUmin","BelowUmin"];
-RPairSummary = cell(0,23);
+RPairSummary = cell(0,24);
 
 for p = 1:height(pairKeys)
 
     maskPairC = conditionResults.Species == pairKeys.Species(p) & ...
+                conditionResults.Dataset == pairKeys.Dataset(p) & ...
                 conditionResults.BaseModel == pairKeys.BaseModel(p) & ...
                 conditionResults.GAUKSModel == pairKeys.GAUKSModel(p);
     maskPairF = fluxResults.Species == pairKeys.Species(p) & ...
+                fluxResults.Dataset == pairKeys.Dataset(p) & ...
                 fluxResults.BaseModel == pairKeys.BaseModel(p) & ...
                 fluxResults.GAUKSModel == pairKeys.GAUKSModel(p);
 
@@ -445,7 +469,6 @@ for p = 1:height(pairKeys)
         % Total RMSE pools all paired biomass and exchange residuals directly.
         nTotalObservations = nPairedBio+nPairedExchange;
         rmseTotalB = NaN; rmseTotalG = NaN; deltaTotal = NaN;
-        % A combined score requires observations from both components.
         if nPairedBio > 0 && nPairedExchange > 0
             rmseTotalB = sqrt((sum(bioResidualB.^2)+sum(fluxResidualB.^2)) / ...
                               nTotalObservations);
@@ -463,7 +486,7 @@ for p = 1:height(pairKeys)
         end
 
         RPairSummary(end+1,:) = { ...
-            pairKeys.Species(p),pairKeys.BaseModel(p),pairKeys.GAUKSModel(p), ...
+            pairKeys.Species(p),pairKeys.Dataset(p),pairKeys.BaseModel(p),pairKeys.GAUKSModel(p), ...
             groupName,nConditions,nPairedBio,nPairedExchange,nTotalObservations, ...
             rmseBioB,rmseBioG,deltaBio,ciBioLow,ciBioHigh, ...
             rmseExchangeB,rmseExchangeG,deltaExchange, ...
@@ -473,7 +496,7 @@ for p = 1:height(pairKeys)
 end
 
 pairSummary = cell2table(RPairSummary,'VariableNames',{ ...
-    'Species','BaseModel','GAUKSModel','Group','NConditions', ...
+    'Species','Dataset','BaseModel','GAUKSModel','Group','NConditions', ...
     'NPairedBio','NPairedExchange','NTotalObservations', ...
     'BioRMSEBefore','BioRMSEAfter','DeltaBioRMSE', ...
     'BioDeltaCI_Lower','BioDeltaCI_Upper', ...
@@ -483,7 +506,7 @@ pairSummary = cell2table(RPairSummary,'VariableNames',{ ...
     'TotalDeltaCI_Lower','TotalDeltaCI_Upper'});
 
 pairSummary = castTableColumns(pairSummary, ...
-    {'Species','BaseModel','GAUKSModel','Group'}, ...
+    {'Species','Dataset','BaseModel','GAUKSModel','Group'}, ...
     {'NConditions','NPairedBio','NPairedExchange','NTotalObservations', ...
      'BioRMSEBefore','BioRMSEAfter','DeltaBioRMSE', ...
      'BioDeltaCI_Lower','BioDeltaCI_Upper','ExchangeRMSEBefore', ...
@@ -491,74 +514,74 @@ pairSummary = castTableColumns(pairSummary, ...
      'ExchangeDeltaCI_Upper','TotalRMSEBefore','TotalRMSEAfter', ...
      'DeltaTotalRMSE','TotalDeltaCI_Lower','TotalDeltaCI_Upper'});
 
-%% Species-level summary across discovered model pairs
-% Model-pair bootstrap intervals describe configuration variability only.
-% Shared data/parameters mean these are not biological-replicate intervals.
+%% Species-level summary across discovered model pairs (separated by Dataset)
 metricNames = ["BioRMSE","ExchangeRMSE","TotalRMSE"];
 beforeColumns = {'BioRMSEBefore','ExchangeRMSEBefore','TotalRMSEBefore'};
 afterColumns = {'BioRMSEAfter','ExchangeRMSEAfter','TotalRMSEAfter'};
 deltaColumns = {'DeltaBioRMSE','DeltaExchangeRMSE','DeltaTotalRMSE'};
-RSpeciesSummary = cell(0,14);
+RSpeciesSummary = cell(0,15);
 
 for s = 1:nSpecies
-    for gg = 1:numel(groupNames)
-        groupName = groupNames(gg);
+    for d = 1:nDatasets
+        datasetName = datasetNames(d);
+        for gg = 1:numel(groupNames)
+            groupName = groupNames(gg);
 
-        for mm = 1:numel(metricNames)
-            mask = pairSummary.Species == speciesNames(s) & ...
-                   pairSummary.Group == groupName;
+            for mm = 1:numel(metricNames)
+                mask = pairSummary.Species == speciesNames(s) & ...
+                       pairSummary.Dataset == datasetName & ...
+                       pairSummary.Group == groupName;
 
-            beforeAll = pairSummary.(beforeColumns{mm})(mask);
-            afterAll = pairSummary.(afterColumns{mm})(mask);
-            deltaAll = pairSummary.(deltaColumns{mm})(mask);
-            validPair = isfinite(beforeAll) & isfinite(afterAll) & ...
-                        isfinite(deltaAll);
+                beforeAll = pairSummary.(beforeColumns{mm})(mask);
+                afterAll = pairSummary.(afterColumns{mm})(mask);
+                deltaAll = pairSummary.(deltaColumns{mm})(mask);
+                validPair = isfinite(beforeAll) & isfinite(afterAll) & ...
+                            isfinite(deltaAll);
 
-            beforeValues = beforeAll(validPair);
-            afterValues = afterAll(validPair);
-            deltaValues = deltaAll(validPair);
+                beforeValues = beforeAll(validPair);
+                afterValues = afterAll(validPair);
+                deltaValues = deltaAll(validPair);
 
-            nPairsTotal = sum(mask);
-            nPairsWithResult = numel(deltaValues);
-            meanBefore = NaN; meanAfter = NaN; meanDelta = NaN;
-            medianDelta = NaN; q1Delta = NaN; q3Delta = NaN;
-            improvedFraction = NaN; ciLow = NaN; ciHigh = NaN;
+                nPairsTotal = sum(mask);
+                nPairsWithResult = numel(deltaValues);
+                meanBefore = NaN; meanAfter = NaN; meanDelta = NaN;
+                medianDelta = NaN; q1Delta = NaN; q3Delta = NaN;
+                improvedFraction = NaN; ciLow = NaN; ciHigh = NaN;
 
-            if nPairsWithResult > 0
-                meanBefore = mean(beforeValues);
-                meanAfter = mean(afterValues);
-                meanDelta = mean(deltaValues);
-                medianDelta = median(deltaValues);
-                q1Delta = simplePercentile(deltaValues,25);
-                q3Delta = simplePercentile(deltaValues,75);
-                improvedFraction = mean(deltaValues < 0);
-                [ciLow,ciHigh] = bootstrapMeanCI(deltaValues,nBootSpecies);
+                if nPairsWithResult > 0
+                    meanBefore = mean(beforeValues);
+                    meanAfter = mean(afterValues);
+                    meanDelta = mean(deltaValues);
+                    medianDelta = median(deltaValues);
+                    q1Delta = simplePercentile(deltaValues,25);
+                    q3Delta = simplePercentile(deltaValues,75);
+                    improvedFraction = mean(deltaValues < 0);
+                    [ciLow,ciHigh] = bootstrapMeanCI(deltaValues,nBootSpecies);
+                end
+
+                RSpeciesSummary(end+1,:) = { ...
+                    speciesNames(s),datasetName,groupName,metricNames(mm), ...
+                    nPairsTotal,nPairsWithResult,meanBefore,meanAfter, ...
+                    meanDelta,medianDelta,q1Delta,q3Delta, ...
+                    improvedFraction,ciLow,ciHigh};
             end
-
-            RSpeciesSummary(end+1,:) = { ...
-                speciesNames(s),groupName,metricNames(mm), ...
-                nPairsTotal,nPairsWithResult,meanBefore,meanAfter, ...
-                meanDelta,medianDelta,q1Delta,q3Delta, ...
-                improvedFraction,ciLow,ciHigh};
         end
     end
 end
 
 speciesSummary = cell2table(RSpeciesSummary,'VariableNames',{ ...
-    'Species','Group','Metric','NModelPairsTotal','NModelPairsWithResult', ...
+    'Species','Dataset','Group','Metric','NModelPairsTotal','NModelPairsWithResult', ...
     'MeanRMSEBefore','MeanRMSEAfter','MeanDelta','MedianDelta', ...
     'Q1Delta','Q3Delta','ImprovedFraction', ...
     'ConfigBootstrapCI_Lower','ConfigBootstrapCI_Upper'});
 
 speciesSummary = castTableColumns(speciesSummary, ...
-    {'Species','Group','Metric'}, ...
+    {'Species','Dataset','Group','Metric'}, ...
     {'NModelPairsTotal','NModelPairsWithResult','MeanRMSEBefore', ...
      'MeanRMSEAfter','MeanDelta','MedianDelta','Q1Delta','Q3Delta', ...
      'ImprovedFraction','ConfigBootstrapCI_Lower','ConfigBootstrapCI_Upper'});
 
 %% Build a single long-format ConditionPredictions table
-% Each condition has a biomass row plus one row for each scored exchange
-% reaction. MetricType distinguishes the two kinds of observations.
 nBioRows = height(conditionResults);
 bioReaction = strings(nBioRows,1);
 for s = 1:nSpecies
@@ -567,7 +590,7 @@ for s = 1:nSpecies
 end
 
 bioOutput = table( ...
-    conditionResults.Species,conditionResults.BaseModel, ...
+    conditionResults.Species,conditionResults.Dataset,conditionResults.BaseModel, ...
     conditionResults.GAUKSModel,conditionResults.ConditionID, ...
     conditionResults.Substrate,conditionResults.OxAvail, ...
     conditionResults.Media,conditionResults.UptakeExperimental, ...
@@ -578,7 +601,7 @@ bioOutput = table( ...
     conditionResults.ErrorBefore,conditionResults.ErrorAfter, ...
     conditionResults.BaseStatus,conditionResults.GAUKSStatus, ...
     'VariableNames',{ ...
-    'Species','BaseModel','GAUKSModel','ConditionID','Substrate', ...
+    'Species','Dataset','BaseModel','GAUKSModel','ConditionID','Substrate', ...
     'OxAvail','Media','UptakeExperimental','UptakeMagnitude','Umin', ...
     'UminGroup','MetricType','Reaction','ExperimentalValue', ...
     'PredictionBefore','PredictionAfter','ErrorBefore','ErrorAfter', ...
@@ -586,7 +609,7 @@ bioOutput = table( ...
 
 nFluxRows = height(fluxResults);
 fluxOutput = table( ...
-    fluxResults.Species,fluxResults.BaseModel,fluxResults.GAUKSModel, ...
+    fluxResults.Species,fluxResults.Dataset,fluxResults.BaseModel,fluxResults.GAUKSModel, ...
     fluxResults.ConditionID,fluxResults.Substrate,fluxResults.OxAvail, ...
     fluxResults.Media,fluxResults.UptakeExperimental, ...
     abs(fluxResults.UptakeExperimental),fluxResults.Umin, ...
@@ -596,7 +619,7 @@ fluxOutput = table( ...
     fluxResults.ErrorBefore,fluxResults.ErrorAfter, ...
     fluxResults.StatusBefore,fluxResults.StatusAfter, ...
     'VariableNames',{ ...
-    'Species','BaseModel','GAUKSModel','ConditionID','Substrate', ...
+    'Species','Dataset','BaseModel','GAUKSModel','ConditionID','Substrate', ...
     'OxAvail','Media','UptakeExperimental','UptakeMagnitude','Umin', ...
     'UminGroup','MetricType','Reaction','ExperimentalValue', ...
     'PredictionBefore','PredictionAfter','ErrorBefore','ErrorAfter', ...
@@ -624,9 +647,9 @@ writetable(pairSummary,outFile,'Sheet','PairSummary');
 writetable(speciesSummary,outFile,'Sheet','SpeciesSummary');
 writetable(dataAudit,outFile,'Sheet','DataAudit');
 
-disp("Growth experiment RMSE analysis complete.");
-disp("Discovered GAUKS model pairs: " + string(height(dataAudit)));
-disp("Analyzed model pairs: " + string(sum(dataAudit.PairStatus == "Analyzed")));
+disp("Growth experiment RMSE analysis complete (Train & Test).");
+disp("Total audit rows (ModelPairs x Datasets): " + string(height(dataAudit)));
+disp("Analyzed rows: " + string(sum(dataAudit.PairStatus == "Analyzed")));
 disp("Results saved to: " + string(outFile));
 
 %% Local functions
